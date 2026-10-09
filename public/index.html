@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Capsule Jail — Ephemeral Sandboxed Execution Engine & Kernel Enclave</title>
+  <meta name="description" content="Autonomous zero-dependency kernel enclave, quota manager, and ephemeral sandboxed execution engine for sovereign AI agents. Strip host secrets, enforce CPU/RAM limits, and audit filesystem diffs.">
+  <meta name="keywords" content="AI agent sandbox, process jail, kernel enclave, python sandbox, RLIMIT_CPU, RLIMIT_AS, ephemeral execution, security guardrail, Neal Frazier Tech, NullAI">
+  <meta name="author" content="Neal Frazier Tech (@1nc0gn30)">
+  <link rel="canonical" href="https://capsule.nullai.tech/">
+
+  <!-- OpenGraph Metadata -->
+  <meta property="og:title" content="Agent Capsule Jail — Ephemeral Sandboxed Execution Engine">
+  <meta property="og:description" content="Autonomous zero-dependency kernel enclave and ephemeral sandbox for AI agent subprocesses. Enforces CPU/RAM limits, strips host secrets, and captures filesystem deltas.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://capsule.nullai.tech/">
+  <meta property="og:image" content="https://capsule.nullai.tech/assets/banner.png">
+  <meta property="og:site_name" content="NullAI Sovereign Platform">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@1nc0gn30">
+  <meta name="twitter:creator" content="@1nc0gn30">
+  <meta name="twitter:title" content="Agent Capsule Jail — Ephemeral Sandboxed Execution Engine">
+  <meta name="twitter:description" content="Zero-dependency process isolation and resource quota manager for sovereign AI agents. 100% Python standard library.">
+  <meta name="twitter:image" content="https://capsule.nullai.tech/assets/banner.png">
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+
+  <!-- Schema.org JSON-LD Graph for Frontier Crawlers & SGE -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "Agent Capsule Jail",
+        "url": "https://capsule.nullai.tech/",
+        "applicationCategory": "SecurityApplication",
+        "operatingSystem": "Linux, POSIX, macOS",
+        "description": "Autonomous zero-dependency kernel enclave and ephemeral execution sandbox for AI agent subprocesses with strict resource quotas, secret stripping, and filesystem delta diffing.",
+        "offers": {
+          "@type": "Offer",
+          "price": "19.00",
+          "priceCurrency": "USD",
+          "availability": "https://schema.org/InStock",
+          "url": "https://buy.stripe.com/7sI7sA8hM2X8eFG8ww"
+        },
+        "author": {
+          "@type": "Person",
+          "name": "Neal Frazier",
+          "url": "https://github.com/1nc0gn30",
+          "affiliation": {
+            "@type": "Organization",
+            "name": "Neal Frazier Tech",
+            "url": "https://nullai.tech"
+          }
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is Agent Capsule Jail?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Agent Capsule Jail is an autonomous, zero-dependency sandboxed execution engine and kernel enclave built exclusively on the Python standard library. It executes agent subprocesses within ephemeral scratch directories, enforces kernel resource quotas (RLIMIT_CPU, RLIMIT_AS, RLIMIT_NPROC), strips host secrets, and captures structured filesystem deltas."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How does environment sanitization protect host credentials?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The capsule runner applies strict denylist filtering to strip high-risk credential variables (such as OPENAI_API_KEY, STRIPE_KEY, AWS_SECRET_ACCESS_KEY, and GITHUB_TOKEN) before spawning child processes, guaranteeing zero credential leakage."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What payment rails are supported for founding licenses?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Founding member lifetime licenses ($19 vs $79 regular) are accepted via Stripe Payment Links (Credit Cards, Apple Pay, Google Pay) and the DePay Solana Web3 payment widget."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+
+  <style>
+    /* Avant-Garde Obsidian & Gold Design System */
+    :root {
+      --bg-dark: #08080B;
+      --bg-surface: #0E0E14;
+      --bg-card: rgba(18, 18, 26, 0.75);
+      --bg-card-hover: rgba(26, 26, 38, 0.85);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(212, 175, 55, 0.35);
+      --gold-primary: #D4AF37;
+      --gold-bright: #F5C542;
+      --emerald-neon: #10B981;
+      --cyan-neon: #06B6D4;
+      --red-alert: #EF4444;
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --font-display: 'Syne', sans-serif;
+      --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      line-height: 1.5;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Ambient Kinetic Background */
+    .ambient-glow {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(212, 175, 55, 0.06) 0%, transparent 45%),
+        radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.05) 0%, transparent 45%),
+        radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.03) 0%, transparent 60%);
+    }
+
+    .container {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 24px 20px 80px 20px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* App Header */
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 24px;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #1C1917, #08080B);
+      border: 1px solid var(--gold-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 16px rgba(212, 175, 55, 0.2);
+    }
+
+    .brand-title {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(180deg, #FFFFFF 30%, var(--gold-primary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-tag {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge-pro {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 20px;
+      letter-spacing: 0.05em;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .badge-pro.is-active {
+      background: rgba(212, 175, 55, 0.15);
+      border-color: var(--gold-primary);
+      color: var(--gold-bright);
+      box-shadow: 0 0 12px rgba(212, 175, 55, 0.25);
+    }
+
+    .btn-key-toggle {
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-family: inherit;
+      border: 1px dashed var(--border-subtle);
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .btn-key-toggle:hover {
+      border-color: var(--gold-primary);
+      color: var(--gold-bright);
+    }
+
+    /* Sales Funnel Banner Above Tool Workspace */
+    .sales-banner {
+      background: linear-gradient(135deg, rgba(30, 24, 12, 0.7) 0%, rgba(14, 14, 20, 0.85) 100%);
+      border: 1px solid rgba(212, 175, 55, 0.4);
+      border-radius: 14px;
+      padding: 18px 24px;
+      margin-bottom: 28px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 0 20px rgba(212, 175, 55, 0.06);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .sales-banner::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 200%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold-primary), transparent);
+      animation: borderSweep 6s infinite linear;
+    }
+
+    @keyframes borderSweep {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(100%); }
+    }
+
+    .sales-info h2 {
+      font-size: 1.15rem;
+      font-family: var(--font-display);
+      font-weight: 700;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .price-strike {
+      text-decoration: line-through;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      font-weight: 400;
+      margin-left: 6px;
+    }
+
+    .price-tag {
+      color: var(--gold-bright);
+      font-weight: 800;
+      font-size: 1.25rem;
+    }
+
+    .sales-info p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .sales-ctas {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn-cta-stripe {
+      background: linear-gradient(135deg, #D4AF37, #B8860B);
+      color: #08080B;
+      font-family: var(--font-sans);
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 10px 18px;
+      border-radius: 8px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(212, 175, 55, 0.35);
+      min-height: 44px;
+    }
+
+    .btn-cta-stripe:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(212, 175, 55, 0.5);
+    }
+
+    .btn-cta-solana {
+      background: rgba(20, 241, 149, 0.12);
+      border: 1px solid var(--emerald-neon);
+      color: var(--emerald-neon);
+      font-family: var(--font-sans);
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 10px 18px;
+      border-radius: 8px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      min-height: 44px;
+    }
+
+    .btn-cta-solana:hover {
+      background: rgba(20, 241, 149, 0.22);
+      transform: translateY(-1px);
+    }
+
+    /* Bento Grid Workspace Layout */
+    .bento-grid {
+      display: grid;
+      grid-template-columns: 7fr 5fr;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    .bento-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 24px;
+      backdrop-filter: blur(16px);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card-title {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #FFFFFF;
+    }
+
+    /* Preset Selection Pills */
+    .preset-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .preset-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .preset-pill {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      font-family: inherit;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .preset-pill:hover,
+    .preset-pill.active {
+      border-color: var(--gold-primary);
+      color: #FFFFFF;
+      background: rgba(212, 175, 55, 0.08);
+    }
+
+    /* Tab Controls */
+    .tab-header {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 8px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .tab-btn.active {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--gold-bright);
+    }
+
+    /* Code Inputs */
+    .editor-wrapper {
+      position: relative;
+    }
+
+    .code-input {
+      width: 100%;
+      background: #050508;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      color: #E2E8F0;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      padding: 14px;
+      outline: none;
+      resize: vertical;
+      min-height: 120px;
+      line-height: 1.6;
+      transition: border-color 0.2s ease;
+    }
+
+    .code-input:focus {
+      border-color: var(--gold-primary);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Sliders & Configuration Row */
+    .controls-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 10px;
+      padding: 16px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .control-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .control-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .control-val {
+      font-family: var(--font-mono);
+      color: var(--cyan-neon);
+      font-size: 0.85rem;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--gold-primary);
+      height: 6px;
+      cursor: pointer;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      min-height: 44px;
+    }
+
+    .checkbox-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--gold-primary);
+      cursor: pointer;
+    }
+
+    /* Run Button */
+    .btn-run {
+      background: linear-gradient(135deg, #10B981, #059669);
+      color: #FFFFFF;
+      font-family: var(--font-sans);
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 14px 24px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 18px rgba(16, 185, 129, 0.35);
+      min-height: 48px;
+    }
+
+    .btn-run:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(16, 185, 129, 0.5);
+    }
+
+    .btn-run:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Telemetry Meters & Status Panel */
+    .status-pill {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 4px 10px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .status-ready { background: rgba(148, 163, 184, 0.15); color: var(--text-muted); }
+    .status-running { background: rgba(6, 182, 212, 0.2); color: var(--cyan-neon); }
+    .status-success { background: rgba(16, 185, 129, 0.2); color: var(--emerald-neon); }
+    .status-timeout { background: rgba(245, 158, 11, 0.2); color: #F59E0B; }
+    .status-oom_killed, .status-error { background: rgba(239, 68, 68, 0.2); color: var(--red-alert); }
+
+    .gauges-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .gauge-box {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .gauge-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .gauge-value {
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-top: 4px;
+    }
+
+    /* Terminal Output Panels */
+    .terminal-container {
+      background: #050508;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .terminal-pre {
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.6;
+      color: #A7F3D0;
+      max-height: 220px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .terminal-stderr {
+      color: #FCA5A5;
+      max-height: 120px;
+    }
+
+    /* Filesystem Delta Table */
+    .diff-table-wrapper {
+      max-height: 240px;
+      overflow-y: auto;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .diff-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+
+    .diff-table th {
+      background: rgba(255, 255, 255, 0.04);
+      padding: 10px 12px;
+      text-align: left;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .diff-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .diff-badge {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-create { background: rgba(16, 185, 129, 0.2); color: var(--emerald-neon); }
+    .badge-mod { background: rgba(212, 175, 55, 0.2); color: var(--gold-bright); }
+    .badge-del { background: rgba(239, 68, 68, 0.2); color: var(--red-alert); }
+
+    /* Advanced Forensic Output with Frosted Glass Paywall Blur */
+    .forensic-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 28px;
+      position: relative;
+    }
+
+    .forensic-wrapper {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 14px;
+    }
+
+    .forensic-payload {
+      background: #050508;
+      padding: 18px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: #E2E8F0;
+      line-height: 1.6;
+      max-height: 280px;
+      overflow-y: auto;
+      white-space: pre;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      transition: filter 0.3s ease;
+    }
+
+    .forensic-payload.is-blurred {
+      filter: blur(6px);
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .paywall-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(8, 8, 11, 0.72);
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      z-index: 10;
+    }
+
+    .paywall-box {
+      max-width: 440px;
+      background: rgba(18, 18, 26, 0.95);
+      border: 1px solid var(--gold-primary);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    }
+
+    .paywall-box h3 {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      color: #FFFFFF;
+      margin-bottom: 8px;
+    }
+
+    .paywall-box p {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    /* Telemetry Bento Row */
+    .telemetry-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .stat-val {
+      font-family: var(--font-mono);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+
+    /* Modal Windows */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(12px);
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-card {
+      background: #0E0E14;
+      border: 1px solid var(--gold-primary);
+      border-radius: 16px;
+      max-width: 520px;
+      width: 100%;
+      padding: 28px;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8);
+      position: relative;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.25rem;
+      cursor: pointer;
+      min-width: 44px;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-title {
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      color: #FFFFFF;
+      margin-bottom: 8px;
+    }
+
+    .modal-desc {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .feature-checklist {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 24px;
+      font-size: 0.85rem;
+      color: #E2E8F0;
+    }
+
+    .feature-checklist li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .feature-checklist li span {
+      color: var(--emerald-neon);
+      font-weight: 700;
+    }
+
+    .input-license {
+      width: 100%;
+      background: #050508;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: #FFFFFF;
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      outline: none;
+      margin-bottom: 14px;
+    }
+
+    .input-license:focus {
+      border-color: var(--gold-primary);
+    }
+
+    /* Footer */
+    .app-footer {
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .footer-links a {
+      color: var(--gold-bright);
+      text-decoration: none;
+      margin-left: 16px;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .footer-links a:hover {
+      text-decoration: underline;
+    }
+
+    /* Triple-Viewport Responsiveness */
+    @media (max-width: 960px) {
+      .bento-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .container {
+        padding: 16px 12px 60px 12px;
+      }
+      .sales-banner {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .sales-ctas {
+        width: 100%;
+      }
+      .btn-cta-stripe, .btn-cta-solana {
+        width: 100%;
+        justify-content: center;
+      }
+      .gauges-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-glow" aria-hidden="true"></div>
+
+  <div class="container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand-group">
+        <div class="brand-logo" aria-hidden="true">🛡️</div>
+        <div>
+          <h1 class="brand-title">Agent Capsule Jail</h1>
+          <div class="brand-tag">Autonomous Kernel Enclave • Port :8105</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btnActivateKey" class="btn-key-toggle" aria-label="Activate Pro License Key">
+          🔑 Activate License
+        </button>
+        <div id="badgePro" class="badge-pro" title="Founding Lifetime Member Status">
+          COMMUNITY EDITION
+        </div>
+      </div>
+    </header>
+
+    <!-- High-Converting Sales Funnel Banner Above Main Section -->
+    <section id="salesBanner" class="sales-banner" aria-label="Founding Member Lifetime Access">
+      <div class="sales-info">
+        <h2>
+          <span>⚡ Founding Member Lifetime Access</span>
+          <span class="price-tag">$19</span>
+          <span class="price-strike">$79</span>
+        </h2>
+        <p>Unlock unrestricted forensic kernel traces, automated delta commits, and multi-tenant quota escalation.</p>
+      </div>
+      <div class="sales-ctas">
+        <a href="https://buy.stripe.com/7sI7sA8hM2X8eFG8ww" target="_blank" rel="noopener noreferrer" class="btn-cta-stripe" aria-label="Purchase lifetime license via Stripe">
+          <span>💳 Lifetime Stripe License ($19)</span>
+        </a>
+        <a href="https://depay.com" target="_blank" rel="noopener noreferrer" class="btn-cta-solana" aria-label="Purchase lifetime license via Solana Web3">
+          <span>⚡ DePay Solana (SOL / USDC)</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- Telemetry Bento Counters -->
+    <section class="telemetry-row" aria-label="Live System Telemetry">
+      <div class="stat-card">
+        <span class="stat-label">Total Capsules</span>
+        <span id="cntTotalRuns" class="stat-val">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Neutralized Timeouts</span>
+        <span id="cntTimeouts" class="stat-val">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Shielded RAM</span>
+        <span id="cntRamSaved" class="stat-val">0 MB</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Enclave Uptime</span>
+        <span id="cntUptime" class="stat-val">0s</span>
+      </div>
+    </section>
+
+    <!-- Main Workspace Bento Grid -->
+    <main class="bento-grid">
+      <!-- Left Column: Command & Script Execution Chamber -->
+      <section class="bento-card" aria-labelledby="execChamberTitle">
+        <div class="card-title">
+          <span id="execChamberTitle">⚡ Sandbox Execution Chamber</span>
+          <span id="statusBadge" class="status-pill status-ready">STANDBY</span>
+        </div>
+
+        <!-- Presets -->
+        <div class="preset-row" aria-label="Security Probe Presets">
+          <span class="preset-label">Probes:</span>
+          <button type="button" class="preset-pill active" data-preset="file_writer" aria-label="Load Safe File Writer probe">File Writer Diff</button>
+          <button type="button" class="preset-pill" data-preset="env_leak" aria-label="Load Secret Stripping probe">Env Secret Strip</button>
+          <button type="button" class="preset-pill" data-preset="cpu_timeout" aria-label="Load CPU Timeout probe">Timeout Quota</button>
+          <button type="button" class="preset-pill" data-preset="fork_bomb" aria-label="Load Fork Bomb Defense probe">Process Ceiling</button>
+          <button type="button" class="preset-pill" data-preset="memory_stress" aria-label="Load Memory Stress probe">Memory Quota</button>
+        </div>
+
+        <!-- Tab Selector -->
+        <div class="tab-header" role="tablist">
+          <button type="button" id="tabCmd" class="tab-btn active" role="tab" aria-selected="true">Shell Command</button>
+          <button type="button" id="tabScript" class="tab-btn" role="tab" aria-selected="false">Python Script</button>
+        </div>
+
+        <!-- Editor Panes -->
+        <div class="editor-wrapper">
+          <div id="paneCmd">
+            <textarea id="inputCmd" class="code-input" aria-label="Shell Command Input" spellcheck="false" placeholder="Enter shell command to execute in ephemeral jail..."></textarea>
+          </div>
+          <div id="paneScript" class="hidden">
+            <textarea id="inputScript" class="code-input" aria-label="Python Script Input" spellcheck="false" placeholder="# Write Python script to run inside capsule...&#10;import os&#10;print('Hello from kernel enclave')"></textarea>
+          </div>
+        </div>
+
+        <!-- Quota Sliders -->
+        <div class="controls-row">
+          <div class="control-item">
+            <div class="control-header">
+              <span>CPU Timeout</span>
+              <span id="valTimeout" class="control-val">10s</span>
+            </div>
+            <input type="range" id="sliderTimeout" min="1" max="60" value="10" aria-label="Execution Timeout Slider">
+          </div>
+          <div class="control-item">
+            <div class="control-header">
+              <span>Memory Limit</span>
+              <span id="valMemory" class="control-val">256 MB</span>
+            </div>
+            <input type="range" id="sliderMemory" min="64" max="1024" step="64" value="256" aria-label="Memory Quota Slider">
+          </div>
+          <div class="control-item">
+            <label class="checkbox-item" for="checkCommit">
+              <input type="checkbox" id="checkCommit">
+              <span>Commit Delta to Destination</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Action Button -->
+        <button type="button" id="btnRun" class="btn-run" aria-label="Run command in Capsule Jail">
+          <span>⚡ Run in Capsule Jail</span>
+        </button>
+      </section>
+
+      <!-- Right Column: Real-Time Telemetry & Filesystem Delta -->
+      <section class="bento-card" aria-labelledby="telemetryChamberTitle">
+        <div class="card-title">
+          <span id="telemetryChamberTitle">📊 Enclave Telemetry</span>
+          <button type="button" id="btnCopyStdout" class="preset-pill" aria-label="Copy Terminal Output">Copy Output</button>
+        </div>
+
+        <!-- Gauges -->
+        <div class="gauges-grid">
+          <div class="gauge-box">
+            <div class="gauge-label">Duration</div>
+            <div id="statDuration" class="gauge-value">0 ms</div>
+          </div>
+          <div class="gauge-box">
+            <div class="gauge-label">Peak RSS</div>
+            <div id="statRss" class="gauge-value">0 MB</div>
+          </div>
+          <div class="gauge-box">
+            <div class="gauge-label">Exit Code</div>
+            <div id="statExitCode" class="gauge-value">—</div>
+          </div>
+        </div>
+
+        <!-- Standard Output Terminal -->
+        <div class="terminal-container" aria-label="Standard Output Terminal">
+          <div class="terminal-bar">
+            <span>● STDOUT</span>
+            <span class="font-mono text-xs">scratch:/tmp</span>
+          </div>
+          <pre id="terminalStdout" class="terminal-pre">Ready for execution. Select a probe above or enter a custom command.</pre>
+        </div>
+
+        <!-- Standard Error Terminal -->
+        <div class="terminal-container" aria-label="Standard Error Terminal">
+          <div class="terminal-bar">
+            <span>▲ STDERR / KERNEL LOGS</span>
+          </div>
+          <pre id="terminalStderr" class="terminal-pre terminal-stderr">(no errors)</pre>
+        </div>
+
+        <!-- Filesystem Delta Inspector -->
+        <div>
+          <div class="card-title" style="font-size: 0.95rem; margin-bottom: 8px;">
+            <span>📁 Filesystem Delta Tree</span>
+            <span id="diffSummaryBadge" class="text-xs text-gray">0 changes</span>
+          </div>
+          <div class="diff-table-wrapper">
+            <table class="diff-table">
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>Path</th>
+                  <th style="text-align: right;">Size</th>
+                  <th>SHA256</th>
+                </tr>
+              </thead>
+              <tbody id="diffTableBody"></tbody>
+            </table>
+            <div id="diffEmptyMessage" class="text-xs text-gray p-3 text-center">
+              No files created, modified, or deleted in scratch directory.
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Advanced Forensic Output with Frosted Glass Paywall Blur -->
+    <section class="forensic-section" aria-labelledby="forensicsTitle">
+      <div class="card-title">
+        <span id="forensicsTitle">🔬 Deep Kernel Forensics & Audit Seal</span>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" id="btnExportForensic" class="preset-pill" aria-label="Export Raw Forensic Telemetry">Export JSON Log</button>
+          <button type="button" id="btnDownloadBundle" class="preset-pill" aria-label="Download Delta Manifest">Download Manifest</button>
+        </div>
+      </div>
+
+      <div class="forensic-wrapper">
+        <pre id="forensicPayload" class="forensic-payload is-blurred">{
+  "capsule_id": "cap_sample_enclave_audit",
+  "isolation_grade": "SOVEREIGN_L3_EPHEMERAL",
+  "audit_integrity": {
+    "sha256_audit_seal": "sha256-4f7b2c9e81a0b3f5c7e12d4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c",
+    "secret_zero_leak_verified": true
+  },
+  "kernel_enclave": {
+    "rlimit_cpu_sec": 30,
+    "rlimit_as_bytes": 536870912,
+    "rlimit_nproc": 64,
+    "rlimit_fsize_bytes": 52428800
+  },
+  "flight_recorder_dispatched": true
+}</pre>
+
+        <!-- Centered Paywall Lock Card -->
+        <div id="forensicBlurOverlay" class="paywall-overlay" role="dialog" aria-label="Forensics Locked">
+          <div class="paywall-box">
+            <h3>🔒 Deep Forensic Logs Locked</h3>
+            <p>Raw kernel syscall traces, SHA256 cryptographic audit seals, and delta export bundles require Founding Pro Access.</p>
+            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+              <a href="https://buy.stripe.com/7sI7sA8hM2X8eFG8ww" target="_blank" rel="noopener noreferrer" class="btn-cta-stripe" aria-label="Unlock Pro via Stripe">
+                <span>Unlock for $19</span>
+              </a>
+              <button type="button" id="btnUnlockForensic" class="preset-pill" aria-label="Enter License Key">
+                <span>Enter Key</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div>
+        Engineered by <strong>Neal Frazier Tech</strong> (<a href="https://github.com/1nc0gn30" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">@1nc0gn30</a>) • <strong>NullAI Platform</strong>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/1nc0gn30" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
+        <a href="https://nullai.tech" target="_blank" rel="noopener noreferrer">NullAI Hub</a>
+        <a href="/sitemap.xml" target="_blank">Sitemap</a>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Paywall Modal -->
+  <div id="modalPaywall" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="paywallModalTitle">
+    <div class="modal-card">
+      <button type="button" id="btnClosePaywall" class="modal-close" aria-label="Close Paywall Modal">✕</button>
+      <h3 id="paywallModalTitle" class="modal-title">Upgrade to Founding Pro</h3>
+      <p class="modal-desc">Secure lifetime sovereign sandbox execution capabilities across your infrastructure.</p>
+
+      <ul class="feature-checklist">
+        <li><span>✓</span> Unrestricted Deep Kernel Syscall Forensics</li>
+        <li><span>✓</span> Automated Delta Commit & Synchronizer Engine</li>
+        <li><span>✓</span> Multi-Tenant High-Density Quota Escalation</li>
+        <li><span>✓</span> Zero-Leak API Credential Strip Guardrail</li>
+        <li><span>✓</span> Flight Recorder Telemetry Ingestion Support</li>
+        <li><span>✓</span> Lifetime Updates — Zero Subscription Recurring Fees</li>
+      </ul>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <a href="https://buy.stripe.com/7sI7sA8hM2X8eFG8ww" target="_blank" rel="noopener noreferrer" class="btn-cta-stripe" style="justify-content: center;" aria-label="Stripe Lifetime Checkout">
+          💳 Unlock Lifetime Access with Stripe ($19)
+        </a>
+        <a href="https://depay.com" target="_blank" rel="noopener noreferrer" class="btn-cta-solana" style="justify-content: center;" aria-label="Solana Web3 Checkout">
+          ⚡ DePay Solana Instant Checkout (SOL / USDC)
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Key Activation Modal -->
+  <div id="modalActivation" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="actModalTitle">
+    <div class="modal-card">
+      <button type="button" id="btnCloseActivation" class="modal-close" aria-label="Close Activation Modal">✕</button>
+      <h3 id="actModalTitle" class="modal-title">Activate Pro License</h3>
+      <p class="modal-desc">Enter your 16-character license key or Stripe receipt email to permanently unlock all features on this browser.</p>
+
+      <input type="text" id="inputLicenseKey" class="input-license" placeholder="capsule_live_... or user@domain.com" aria-label="License Key or Email Input">
+      <div id="keyError" style="color: var(--red-alert); font-size: 0.8rem; margin-bottom: 12px; display: none;"></div>
+
+      <button type="button" id="btnSubmitKey" class="btn-run" style="width: 100%;" aria-label="Submit License Key">
+        Verify & Unlock
+      </button>
+    </div>
+  </div>
+
+  <script src="/capsule_engine.js"></script>
+</body>
+</html>
