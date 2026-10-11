@@ -155,3 +155,16 @@ network.
 Browser requests are only accepted from `localhost` / `127.0.0.1` pages:
 cross-site POSTs get `403` and CORS never answers `*`, so a website you visit
 can't drive this local server. CLI and agent clients are unaffected.
+
+## Security Model (`/api/exec`)
+
+Capsule Jail runs arbitrary commands, so the API is locked down by default:
+
+- **Real isolation (bubblewrap).** Every capsule runs under `bwrap`: read-only host root, empty private `/home`, `/root`, `/tmp` and `/run` (only the scratch dir is writable), all namespaces unshared, all capabilities dropped, and `no_new_privs` set so `sudo`/setuid binaries cannot escalate. **No network** unless the request sets `"allow_network": true` (CLI: `--allow-network`).
+- **No bwrap, no exec.** If bubblewrap is missing, exec is refused. `CAPSULE_ALLOW_UNSANDBOXED=1` opts into rlimits-only mode (not isolation).
+- **Exec token.** `POST /api/exec` requires `X-Capsule-Token: <token>` (or `Authorization: Bearer <token>`). The token is generated on first start at `~/.config/agent-capsule-jail/token` (mode 0600); print it with `agent-capsule token`. `CAPSULE_TOKEN` overrides. The web cockpit asks for it once.
+- **Local origins only.** Cross-origin browser requests are rejected (403) even with a token; the server binds to 127.0.0.1.
+- **Optional allowlist.** `CAPSULE_ALLOWED_COMMANDS=python3,node,echo` restricts the program that may be launched (shell-form commands need `sh` in the list).
+- **Safe file I/O.** `initial_files` paths cannot escape the scratch dir; commits only go to `CAPSULE_COMMIT_ROOTS` (default `~/capsule-commits`, `:`-separated) and never follow or copy symlinks. Scratch dirs are always removed.
+
+`GET /api/health` reports the active `sandbox` mode.

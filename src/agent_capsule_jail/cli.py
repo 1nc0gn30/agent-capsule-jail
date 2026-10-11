@@ -17,8 +17,8 @@ import urllib.request
 from pathlib import Path
 from typing import List, Optional
 
-from .capsule import CapsuleConfig, CapsuleRunner, ResourceLimits
-from .server import CapsuleServer
+from .capsule import CapsuleConfig, CapsuleRunner, CapsuleSecurityError, ResourceLimits, sandbox_mode
+from .server import TOKEN_PATH, CapsuleServer, load_or_create_token
 
 
 def _default_bind_host() -> str:
@@ -87,6 +87,7 @@ def cmd_exec(args: argparse.Namespace) -> int:
         allowed_env=args.env or [],
         commit=args.commit,
         destination_dir=args.dest,
+        allow_network=args.allow_network,
     )
 
     if not args.quiet and not args.json:
@@ -97,7 +98,11 @@ def cmd_exec(args: argparse.Namespace) -> int:
         if args.script:
             print(f"{C_GRAY}   Script:  {args.script}{C_RESET}")
 
-    res = runner.run(command=command, config=cfg, script=script_content)
+    try:
+        res = runner.run(command=command, config=cfg, script=script_content)
+    except CapsuleSecurityError as e:
+        print(f"{C_RED}Blocked by capsule policy: {e}{C_RESET}", file=sys.stderr)
+        return 2
 
     if args.json:
         print(json.dumps(res.to_dict(), indent=2))
@@ -150,6 +155,10 @@ def cmd_serve(args: argparse.Namespace) -> int:
     print(f"  Telemetry Stats:    http://{host}:{port}/api/stats")
     print(f"  Health Check:       http://{host}:{port}/api/health")
     print(f"  Glassmorphic GUI:   http://{host}:{port}/")
+    mode = sandbox_mode()
+    print(f"  Sandbox:            {mode}" + ("" if mode == "bwrap" else "  (WARNING: commands are NOT isolated)" if mode == "unsandboxed" else "  (exec disabled: install bubblewrap)"))
+    load_or_create_token()
+    print(f"  Exec token:         {TOKEN_PATH}  (or run `agent-capsule token`)")
     print(f"{C_GRAY}  Flight Recorder:    http://127.0.0.1:8104/api/ingest{C_RESET}")
     print(f"{C_DIM}Press Ctrl+C to terminate server gracefully.{C_RESET}\n")
 
@@ -224,6 +233,7 @@ def main() -> None:
     p_exec.add_argument("--script", type=str, help="Path to Python script to execute inside capsule")
     p_exec.add_argument("--commit", action="store_true", help="Commit scratch changes to destination")
     p_exec.add_argument("--dest", type=str, help="Destination directory if committing")
+    p_exec.add_argument("--allow-network", action="store_true", help="Give the capsule network access (off by default)")
     p_exec.add_argument("--json", action="store_true", help="Output result as pure JSON")
     p_exec.add_argument("--quiet", "-q", action="store_true", help="Suppress header banner")
     p_exec.add_argument("command", nargs=argparse.REMAINDER, help="Command and arguments to execute")
@@ -239,6 +249,7 @@ def main() -> None:
 
     # Command: test
     subparsers.add_parser("test", help="Run automated unit and integration tests")
+    subparsers.add_parser("token", help="Print the API exec token (for the web cockpit / API clients)")
 
     args = parser.parse_args()
 
@@ -250,6 +261,10 @@ def main() -> None:
         sys.exit(cmd_status(args))
     elif args.subcommand == "test":
         sys.exit(cmd_test(args))
+    elif args.subcommand == "token":
+        print(load_or_create_token())
+        print(f"(stored in {TOKEN_PATH}; send it as the X-Capsule-Token header)", file=sys.stderr)
+        sys.exit(0)
     else:
         print_banner()
         parser.print_help()

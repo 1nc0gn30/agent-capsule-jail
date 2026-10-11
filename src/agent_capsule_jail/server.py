@@ -17,8 +17,32 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, urlparse
 
-from .capsule import CapsuleConfig, CapsuleRunner, ResourceLimits
+from .capsule import CapsuleConfig, CapsuleRunner, CapsuleSecurityError, ResourceLimits, sandbox_mode
 from .telemetry import TelemetryRegistry
+
+
+TOKEN_PATH = Path(os.environ.get("CAPSULE_TOKEN_FILE", str(Path.home() / ".config" / "agent-capsule-jail" / "token")))
+
+
+def load_or_create_token() -> str:
+    """Per-install exec token, stored owner-only (0600). $CAPSULE_TOKEN overrides."""
+    env = os.environ.get("CAPSULE_TOKEN", "").strip()
+    if env:
+        return env
+    import secrets
+    try:
+        tok = TOKEN_PATH.read_text(encoding="utf-8").strip()
+        if tok:
+            return tok
+    except OSError:
+        pass
+    TOKEN_PATH.parent.mkdir(parents=True, exist_ok=True)
+    os.chmod(TOKEN_PATH.parent, 0o700)
+    tok = secrets.token_urlsafe(32)
+    fd = os.open(TOKEN_PATH, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(tok + "\n")
+    return tok
 
 
 def _is_local_origin(origin) -> bool:
@@ -86,6 +110,8 @@ class CapsuleApiHandler(BaseHTTPRequestHandler):
             stats = self.telemetry.get_stats()
             self._send_json(HTTPStatus.OK, {
                 "status": "healthy",
+                "sandbox": sandbox_mode(),
+                "exec_requires_token": True,
                 "service": "agent-capsule-jail",
                 "port": 8105,
                 "version": "0.1.0",
@@ -170,6 +196,18 @@ class CapsuleApiHandler(BaseHTTPRequestHandler):
         path = parsed.path.rstrip("/")
 
         if path == "/api/exec":
+            import hmac
+            supplied = self.headers.get("X-Capsule-Token", "")
+            auth = self.headers.get("Authorization", "")
+            if not supplied and auth.lower().startswith("bearer "):
+                supplied = auth[7:].strip()
+            expected = getattr(self.server, "exec_token", "") or ""
+            if not expected or not hmac.compare_digest(supplied.encode(), expected.encode()):
+                self._send_json(HTTPStatus.UNAUTHORIZED, {
+                    "error": "exec token required",
+                    "hint": f"send X-Capsule-Token (see {TOKEN_PATH}, or `agent-capsule token`)",
+                })
+                return
             content_length = int(self.headers.get("Content-Length", 0))
             if content_length > 5 * 1024 * 1024:  # 5MB body max
                 self._send_json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "Payload exceeds 5MB limit"})
@@ -213,10 +251,15 @@ class CapsuleApiHandler(BaseHTTPRequestHandler):
                 commit=commit,
                 destination_dir=destination_dir,
                 initial_files=initial_files,
+                allow_network=bool(data.get("allow_network", False)),
             )
 
             # Execute within ephemeral sandbox
-            result = self.runner.run(command=command, config=cfg, script=script)
+            try:
+                result = self.runner.run(command=command, config=cfg, script=script)
+            except CapsuleSecurityError as e:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(e), "policy_violation": True})
+                return
 
             # Record telemetry
             self.telemetry.record_run(result)
@@ -244,6 +287,7 @@ class CapsuleServer:
         self.telemetry = TelemetryRegistry(flight_recorder_url=flight_recorder_url)
         self.httpd: Optional[ThreadingHTTPServer] = None
         self._thread: Optional[threading.Thread] = None
+        self.exec_token = load_or_create_token()
 
     def start(self, block: bool = True) -> None:
         """Start the API server."""
@@ -255,6 +299,7 @@ class CapsuleServer:
 
         self.httpd = ThreadingHTTPServer((self.host, self.port), handler_class)
         self.httpd.daemon_threads = True
+        self.httpd.exec_token = self.exec_token
 
         if block:
             try:

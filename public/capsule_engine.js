@@ -327,14 +327,30 @@
     };
 
     try {
-      const resp = await fetch('/api/exec', {
+      const send = () => fetch('/api/exec', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Capsule-Token': localStorage.getItem('capsuleToken') || ''
+        },
         body: jsonSafeStringify(payload)
       });
 
+      let resp = await send();
+      if (resp.status === 401) {
+        // Exec needs the per-install token: run `agent-capsule token` in a terminal.
+        const tok = window.prompt('Capsule exec token (run `agent-capsule token` in a terminal):', '');
+        if (tok) {
+          localStorage.setItem('capsuleToken', tok.trim());
+          resp = await send();
+        }
+      }
+
       if (!resp.ok) {
-        throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+        let detail = `${resp.status} ${resp.statusText}`;
+        try { const j = await resp.json(); if (j && j.error) detail = j.error; } catch (_) {}
+        if (resp.status === 401) localStorage.removeItem('capsuleToken');
+        throw new Error(detail);
       }
 
       const result = await resp.json();

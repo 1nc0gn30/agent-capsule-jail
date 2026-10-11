@@ -110,6 +110,91 @@ class CapsuleConfig:
     initial_files: Dict[str, Union[str, bytes]] = field(default_factory=dict)
     capture_output: bool = True
     max_output_bytes: int = 10 * 1024 * 1024  # 10MB max stdout/err
+    allow_network: bool = False  # sandbox has no network unless explicitly requested
+
+
+class CapsuleSecurityError(ValueError):
+    """Request rejected by sandbox policy (path escape, allowlist, no sandbox)."""
+
+
+def _bwrap_path() -> Optional[str]:
+    return shutil.which("bwrap")
+
+
+def sandbox_mode() -> str:
+    """'bwrap' when bubblewrap isolation is available, 'unsandboxed' only when the
+    operator explicitly opted in with CAPSULE_ALLOW_UNSANDBOXED=1, else 'unavailable'."""
+    if os.environ.get("CAPSULE_DISABLE_BWRAP") != "1" and _bwrap_path():
+        return "bwrap"
+    if os.environ.get("CAPSULE_ALLOW_UNSANDBOXED") == "1":
+        return "unsandboxed"
+    return "unavailable"
+
+
+def allowed_commands() -> Optional[Set[str]]:
+    raw = os.environ.get("CAPSULE_ALLOWED_COMMANDS", "").strip()
+    return {c.strip() for c in raw.split(",") if c.strip()} or None if raw else None
+
+
+def commit_roots() -> List[Path]:
+    raw = os.environ.get("CAPSULE_COMMIT_ROOTS", "")
+    roots = [Path(r).expanduser() for r in raw.split(os.pathsep) if r.strip()]
+    return [r.resolve() for r in (roots or [Path.home() / "capsule-commits"])]
+
+
+def _inside(child: Path, root: Path) -> bool:
+    try:
+        child.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def safe_relpath(scratch: Path, rel: str) -> Path:
+    """Resolve rel inside scratch; reject absolute paths, '..' escapes and NULs."""
+    if not isinstance(rel, str) or not rel or "\x00" in rel or os.path.isabs(rel):
+        raise CapsuleSecurityError(f"invalid file path {rel!r}")
+    target = (scratch / rel).resolve()
+    if not _inside(target, scratch.resolve()) or target == scratch.resolve():
+        raise CapsuleSecurityError(f"path escapes the capsule: {rel!r}")
+    return target
+
+
+def _set_no_new_privs() -> None:
+    """PR_SET_NO_NEW_PRIVS: sudo / setuid binaries can no longer gain privileges."""
+    try:
+        import ctypes
+        libc = ctypes.CDLL(None, use_errno=True)
+        libc.prctl(38, 1, 0, 0, 0)
+    except Exception:
+        pass
+
+
+def build_bwrap_argv(cmd_args: List[str], scratch: Path, allow_network: bool) -> List[str]:
+    """Read-only root, private /tmp and /home (only the scratch dir is writable),
+    all namespaces unshared (no network unless allowed), all capabilities dropped.
+    bwrap also sets no_new_privs, so sudo/setuid cannot escalate."""
+    s = str(scratch)
+    argv = [
+        _bwrap_path() or "bwrap",
+        "--ro-bind", "/", "/",
+        "--dev", "/dev",
+        "--proc", "/proc",
+        "--tmpfs", "/tmp",
+        "--tmpfs", "/home",
+        "--tmpfs", "/root",
+        "--bind", s, s,
+        "--chdir", s,
+        "--unshare-all",
+        "--die-with-parent",
+        "--new-session",
+        "--cap-drop", "ALL",
+    ]
+    if allow_network:
+        argv.append("--share-net")  # keep /run so resolv.conf (-> /run/...) still works
+    else:
+        argv[argv.index("--bind"):argv.index("--bind")] = ["--tmpfs", "/run"]
+    return argv + ["--"] + cmd_args
 
 
 @dataclass
@@ -253,26 +338,42 @@ class CapsuleRunner:
         )
 
     def commit_changes(self, delta: FilesystemDelta, scratch_root: Path, destination_root: Path) -> bool:
-        """Commit filesystem delta from ephemeral scratch space into permanent destination."""
+        """Commit filesystem delta from ephemeral scratch space into permanent destination.
+        Destination must sit inside an allowed commit root (CAPSULE_COMMIT_ROOTS,
+        default ~/capsule-commits); symlinks are never followed or copied."""
         try:
+            destination_root = Path(destination_root).expanduser().resolve()
+            if not any(_inside(destination_root, r) for r in commit_roots()):
+                raise CapsuleSecurityError(
+                    f"destination {destination_root} is outside the allowed commit roots "
+                    f"({', '.join(str(r) for r in commit_roots())}); set CAPSULE_COMMIT_ROOTS to allow it")
             destination_root.mkdir(parents=True, exist_ok=True)
+            scratch_real = scratch_root.resolve()
 
-            # Copy created and modified files
+            # Copy created and modified files (regular files only, never via symlinks)
             for item in delta.created + delta.modified:
                 rel_path = item["path"]
                 src = scratch_root / rel_path
-                dst = destination_root / rel_path
-                if src.exists() and src.is_file():
+                if src.is_symlink() or not _inside(src.resolve(), scratch_real):
+                    continue
+                dst = (destination_root / rel_path).resolve()
+                if not _inside(dst, destination_root):
+                    continue
+                if src.is_file():
                     dst.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(src, dst)
+                    shutil.copy2(src, dst, follow_symlinks=False)
 
-            # Delete removed files
+            # Delete removed files (only inside the destination root)
             for rel_path in delta.deleted:
                 dst = destination_root / rel_path
-                if dst.exists() and dst.is_file():
+                if dst.is_symlink() or not _inside(dst.resolve(), destination_root):
+                    continue
+                if dst.is_file():
                     dst.unlink()
 
             return True
+        except CapsuleSecurityError:
+            raise
         except Exception:
             return False
 
@@ -287,6 +388,12 @@ class CapsuleRunner:
         limits = cfg.limits
         start_ts = time.time()
         capsule_id = f"cap_{int(start_ts)}_{os.getpid()}_{id(command) % 100000}"
+
+        mode = sandbox_mode()
+        if mode == "unavailable":
+            raise CapsuleSecurityError(
+                "bubblewrap (bwrap) is not installed, so commands cannot be isolated. "
+                "Install bubblewrap, or set CAPSULE_ALLOW_UNSANDBOXED=1 to run without isolation.")
 
         # 1. Prepare Ephemeral Scratch Directory
         scratch_dir = Path(tempfile.mkdtemp(prefix=f"jail_{capsule_id}_", dir=self.base_scratch_dir))
@@ -303,7 +410,7 @@ class CapsuleRunner:
         try:
             # Seed initial files if requested
             for rel_path, content in cfg.initial_files.items():
-                target_file = scratch_dir / rel_path
+                target_file = safe_relpath(scratch_dir, rel_path)
                 target_file.parent.mkdir(parents=True, exist_ok=True)
                 if isinstance(content, str):
                     target_file.write_text(content, encoding="utf-8")
@@ -328,6 +435,33 @@ class CapsuleRunner:
             else:
                 cmd_args = list(command)
 
+            allow = allowed_commands()
+            if allow is not None:
+                prog = os.path.basename(cmd_args[0]) if cmd_args else ""
+                if script:
+                    prog = "python3"
+                if cmd_args[:2] == ["/bin/sh", "-c"]:
+                    prog = "sh"
+                if prog not in allow:
+                    raise CapsuleSecurityError(
+                        f"command {prog!r} is not in CAPSULE_ALLOWED_COMMANDS ({', '.join(sorted(allow))})")
+
+            if mode == "bwrap":
+                # RLIMIT_NPROC must be applied *inside* the sandbox: set before bwrap,
+                # it blocks bwrap's own namespace clone (EAGAIN).
+                if limits.max_procs > 0 and shutil.which("prlimit"):
+                    uid = os.getuid()
+                    owned = 0
+                    for d in os.listdir("/proc"):
+                        if d.isdigit():
+                            try:
+                                owned += os.stat(f"/proc/{d}").st_uid == uid
+                            except OSError:
+                                pass
+                    ceiling = max(128, owned + limits.max_procs + 16)
+                    cmd_args = ["prlimit", f"--nproc={ceiling}:{ceiling}", "--"] + cmd_args
+                cmd_args = build_bwrap_argv(cmd_args, scratch_dir, cfg.allow_network)
+
             # Snapshot pre-execution directory
             pre_snapshot = self.snapshot_directory(scratch_dir)
 
@@ -341,6 +475,7 @@ class CapsuleRunner:
             def _preexec_limits():
                 # Isolate process group for clean kill
                 os.setsid()
+                _set_no_new_privs()
 
                 # RLIMIT_CPU: Soft and Hard limits (sec)
                 if hasattr(resource, "RLIMIT_CPU") and limits.timeout_sec > 0:
@@ -354,7 +489,7 @@ class CapsuleRunner:
 
                 # RLIMIT_NPROC: Max processes / threads to prevent fork bombs
                 # In Linux RLIMIT_NPROC applies per-UID, so set safe ceiling above existing processes
-                if hasattr(resource, "RLIMIT_NPROC") and limits.max_procs > 0:
+                if mode != "bwrap" and hasattr(resource, "RLIMIT_NPROC") and limits.max_procs > 0:
                     try:
                         cur_soft, cur_hard = resource.getrlimit(resource.RLIMIT_NPROC)
                         uid = os.getuid()
@@ -448,12 +583,12 @@ class CapsuleRunner:
                 committed = self.commit_changes(fs_diff, scratch_dir, dest)
 
         finally:
-            # Discard scratch directory if not committing or once committed
-            if not cfg.commit or committed:
-                try:
-                    shutil.rmtree(scratch_dir, ignore_errors=True)
-                except Exception:
-                    pass
+            # Always discard the scratch dir (committed files were already copied out;
+            # a failed commit used to leak the directory forever).
+            try:
+                shutil.rmtree(scratch_dir, ignore_errors=True)
+            except Exception:
+                pass
 
         duration_ms = (time.time() - start_ts) * 1000.0
 

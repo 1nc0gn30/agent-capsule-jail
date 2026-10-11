@@ -12,6 +12,7 @@ import shutil
 import tempfile
 import time
 import unittest
+import unittest.mock
 import urllib.request
 from pathlib import Path
 
@@ -108,7 +109,8 @@ class TestCapsuleCore(unittest.TestCase):
         self.assertEqual(fs["total_changes"], 2)
 
     def test_commit_vs_discard(self) -> None:
-        with tempfile.TemporaryDirectory() as dest_dir:
+        with tempfile.TemporaryDirectory() as dest_dir, \
+                unittest.mock.patch.dict(os.environ, {"CAPSULE_COMMIT_ROOTS": dest_dir}):
             dest_path = Path(dest_dir)
 
             # Case A: Commit enabled
@@ -151,6 +153,7 @@ class TestCapsuleApiAndTelemetry(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.port = 8195  # Test port (different from 8105)
+        os.environ["CAPSULE_TOKEN"] = "test-token"
         cls.server = CapsuleServer(host="127.0.0.1", port=cls.port)
         cls.server.start(block=False)
         time.sleep(0.3)
@@ -184,7 +187,7 @@ class TestCapsuleApiAndTelemetry(unittest.TestCase):
         req = urllib.request.Request(
             f"http://127.0.0.1:{self.port}/api/exec",
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": "application/json", "X-Capsule-Token": "test-token"},
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=5.0) as resp:
@@ -200,7 +203,7 @@ class TestCapsuleApiAndTelemetry(unittest.TestCase):
         req_post = urllib.request.Request(
             f"http://127.0.0.1:{self.port}/api/exec",
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": "application/json", "X-Capsule-Token": "test-token"},
             method="POST",
         )
         with urllib.request.urlopen(req_post, timeout=5.0) as _:
