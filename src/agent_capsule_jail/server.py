@@ -24,6 +24,17 @@ from .telemetry import TelemetryRegistry
 TOKEN_PATH = Path(os.environ.get("CAPSULE_TOKEN_FILE", str(Path.home() / ".config" / "agent-capsule-jail" / "token")))
 
 
+def _safe_rel(raw: str) -> str:
+    """Request path -> safe relative path inside a static dir; '' (index) if it
+    tries to climb out with '..' or is absolute. Raw request paths are not normalised."""
+    from urllib.parse import unquote
+    rel = unquote(str(raw or "")).replace("\\", "/").lstrip("/")
+    parts = [p for p in rel.split("/") if p not in ("", ".")]
+    if any(p == ".." for p in parts) or ":" in (parts[0] if parts else ""):
+        return ""
+    return "/".join(parts)
+
+
 def load_or_create_token() -> str:
     """Per-install exec token, stored owner-only (0600). $CAPSULE_TOKEN overrides."""
     env = os.environ.get("CAPSULE_TOKEN", "").strip()
@@ -139,7 +150,7 @@ class CapsuleApiHandler(BaseHTTPRequestHandler):
             return
 
         # 4. Static Web Cockpit Files (public/ directory)
-        rel_file = parsed.path.lstrip("/")
+        rel_file = _safe_rel(parsed.path)
         if rel_file == "" or rel_file == "index.html":
             target = self.public_dir / "index.html"
         else:
