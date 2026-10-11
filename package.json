@@ -1,0 +1,10 @@
+{
+  "name": "agent-capsule-jail",
+  "version": "2.5.0",
+  "description": "Autonomous kernel enclave sandbox, resource quota manager, and secret stripping engine for AI agents with dual Stripe + Solana checkout rails.",
+  "scripts": {
+    "serve": "python3 -m http.server 8105 --directory public"
+  },
+  "author": "Neal Frazier Tech (@1nc0gn30)",
+  "license": "MIT"
+}

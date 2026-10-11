@@ -984,12 +984,13 @@
         </div>
       </div>
       <div class="header-actions">
+        <span class="badge" style="background: rgba(212,175,55,0.15); color: #F59E0B; border: 1px solid rgba(212,175,55,0.3); font-size: 11px; padding: 4px 8px; border-radius: 4px; font-weight: 700;">v2.5 SOVEREIGN</span>
+        <div id="licenseBadge" data-alias="badgePro" data-alt-id="pro-badge" class="badge-pro" title="Founding Lifetime Member Status">
+          ⚡ FREE TIER
+        </div>
         <button id="btnActivateKey" class="btn-key-toggle" aria-label="Activate Pro License Key">
           🔑 Activate License
         </button>
-        <div id="badgePro" data-alt-id="pro-badge" class="badge-pro" title="Founding Lifetime Member Status">
-          FREE TIER
-        </div>
       </div>
     </header>
 
@@ -1223,7 +1224,7 @@
   </div>
 
   <!-- Paywall Modal -->
-  <div id="modalPaywall" data-alt-id="paywallModal" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="paywallModalTitle">
+  <div id="modalPaywall" data-alias="licenseModal" data-alt-id="paywallModal" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="paywallModalTitle">
     <div class="modal-card">
       <button type="button" id="btnClosePaywall" class="modal-close" aria-label="Close Paywall Modal">✕</button>
       <h3 id="paywallModalTitle" class="modal-title">Upgrade to Founding Pro</h3>
@@ -1250,16 +1251,16 @@
   </div>
 
   <!-- Key Activation Modal -->
-  <div id="modalActivation" data-alt-id="activationModal" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="actModalTitle">
+  <div id="modalActivation" data-alias="activationModal" data-alt-id="activationModal" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="actModalTitle">
     <div class="modal-card">
       <button type="button" id="btnCloseActivation" class="modal-close" aria-label="Close Activation Modal">✕</button>
       <h3 id="actModalTitle" class="modal-title">Activate Pro License</h3>
       <p class="modal-desc">Enter your 16-character license key or Stripe receipt email to permanently unlock all features on this browser.</p>
 
-      <input type="text" id="inputLicenseKey" data-alt-id="licenseKeyInput" class="input-license" placeholder="CAPSULE-PRO-2026 or user@domain.com" aria-label="License Key or Email Input">
+      <input type="text" id="licenseKeyInput" data-alias="inputLicenseKey" data-alt-id="licenseKeyInput" class="input-license" placeholder="CAPSULE-PRO-2026 or user@domain.com" aria-label="License Key or Email Input">
       <div id="keyError" style="color: var(--red-alert); font-size: 0.8rem; margin-bottom: 12px; display: none;"></div>
 
-      <button type="button" id="btnSubmitKey" data-alt-id="btn-modal-activate" class="btn-run" style="width: 100%;" aria-label="Submit License Key">
+      <button type="button" id="btnSubmitKey" data-alias="btnActivateKey" data-alt-id="btn-modal-activate" class="btn-run" style="width: 100%;" aria-label="Submit License Key">
         Verify & Unlock
       </button>
     </div>

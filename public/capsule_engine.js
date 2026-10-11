@@ -154,21 +154,27 @@
 
   function checkLicense() {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('licensed') === 'true' || params.get('pro') === 'true') {
+    if (params.get('licensed') === 'true' || params.get('pro') === 'true' || params.get('session_id')) {
       localStorage.setItem('agent_capsule_pro_license', 'active');
+      localStorage.setItem('zoth_capsule_licensed', 'true');
+      localStorage.setItem('pro_licensed', 'true');
       const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
       window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
     }
 
-    const saved = localStorage.getItem('agent_capsule_pro_license');
-    if (saved === 'active') {
+    const saved = (
+      localStorage.getItem('agent_capsule_pro_license') === 'active' ||
+      localStorage.getItem('zoth_capsule_licensed') === 'true' ||
+      localStorage.getItem('pro_licensed') === 'true'
+    );
+    if (saved) {
       state.isPro = true;
       applyProUi();
     }
   }
 
   function applyProUi() {
-    const badge = els.badgePro || document.getElementById('badgePro') || document.getElementById('pro-badge');
+    const badge = document.getElementById('licenseBadge') || els.badgePro || document.getElementById('badgePro') || document.getElementById('pro-badge');
     if (badge) {
       badge.textContent = '⭐ PRO ACTIVE';
       badge.className = 'badge-pro is-active';
@@ -186,6 +192,25 @@
       payload.classList.remove('is-blurred');
     }
   }
+
+  window.activateLicenseKey = function(key) {
+    const k = (typeof key === 'string' && key) ? key : (document.getElementById('licenseKeyInput')?.value || document.getElementById('inputLicenseKey')?.value || '');
+    if (k.length >= 4) {
+      localStorage.setItem('agent_capsule_pro_license', 'active');
+      localStorage.setItem('zoth_capsule_licensed', 'true');
+      localStorage.setItem('pro_licensed', 'true');
+      state.isPro = true;
+      applyProUi();
+      closeModal('activation');
+      closeModal('paywall');
+      return true;
+    }
+    return false;
+  };
+
+  window.openLicenseModal = function() {
+    openModal('paywall');
+  };
 
   function bindEvents() {
     // Presets
@@ -672,10 +697,13 @@
     // Accept valid format or founding member proof
     if (key.length >= 4 || key.includes('@') || key.toLowerCase().includes('capsule') || key.toLowerCase().includes('pro')) {
       localStorage.setItem('agent_capsule_pro_license', 'active');
+      localStorage.setItem('zoth_capsule_licensed', 'true');
+      localStorage.setItem('pro_licensed', 'true');
       state.isPro = true;
       applyProUi();
       closeModal('activation');
-      alert('⭐ Sovereign Pro License Activated Permanently!');
+      closeModal('paywall');
+      console.log('⭐ Sovereign Pro License Activated Permanently!');
     } else {
       showKeyError('Invalid key format. Please enter a valid 16-character license key or Stripe receipt email.');
     }
