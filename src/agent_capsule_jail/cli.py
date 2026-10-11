@@ -20,6 +20,24 @@ from typing import List, Optional
 from .capsule import CapsuleConfig, CapsuleRunner, ResourceLimits
 from .server import CapsuleServer
 
+
+def _default_bind_host() -> str:
+    """Bind address: localhost unless explicitly opted in via $ZOTH_BIND_HOST or
+    $HOST (IP literal only; zsh sets HOST to the hostname) or --host."""
+    import ipaddress, os
+    for var in ("ZOTH_BIND_HOST", "HOST"):
+        val = os.environ.get(var, "").strip()
+        if val == "localhost":
+            return "127.0.0.1"
+        if val:
+            try:
+                ipaddress.ip_address(val)
+                return val
+            except ValueError:
+                pass
+    return "127.0.0.1"
+
+
 C_RESET = "\033[0m"
 C_BOLD = "\033[1m"
 C_DIM = "\033[2m"
@@ -213,7 +231,7 @@ def main() -> None:
     # Command: serve
     p_serve = subparsers.add_parser("serve", help="Run the REST API and Glassmorphic Web Cockpit")
     p_serve.add_argument("--port", type=int, default=8105, help="Port to bind (default: 8105)")
-    p_serve.add_argument("--host", type=str, default="0.0.0.0", help="Host interface (default: 0.0.0.0)")
+    p_serve.add_argument("--host", type=str, default=_default_bind_host(), help="Host interface (default: 127.0.0.1 or $ZOTH_BIND_HOST; use 0.0.0.0 only on trusted networks)")
 
     # Command: status
     p_status = subparsers.add_parser("status", help="Inspect status of running capsule daemon")

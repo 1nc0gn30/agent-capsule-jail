@@ -204,7 +204,7 @@ class CapsuleServer:
 
     def __init__(
         self,
-        host: str = "0.0.0.0",
+        host: str = "127.0.0.1",
         port: int = 8105,
         public_dir: Optional[Path] = None,
         flight_recorder_url: str = "http://127.0.0.1:8104/api/ingest",
