@@ -1,0 +1,172 @@
+/* ==========================================================================
+   Agent Capsule Jail — Wave Surface Design System
+   One Strong Idea: Precision Enclave Perimeter & Monospace Telemetry Grid
+   ========================================================================== */
+
+/* 1. Enhanced Typography & Calibrated Hierarchy */
+.brand-tag {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #94A3B8;
+}
+
+.stat-label,
+.gauge-label,
+.preset-label,
+.control-header {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #94A3B8;
+}
+
+.stat-val,
+.gauge-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.control-val {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.card-title {
+  letter-spacing: -0.015em;
+}
+
+.tab-btn {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.terminal-bar {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.diff-table th {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #94A3B8;
+}
+
+.status-pill {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.code-input {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  tab-size: 2;
+}
+
+/* 2. Razor-Sharp Visible Focus Indicators */
+:focus-visible {
+  outline: 2px solid var(--gold-primary);
+  outline-offset: 2px;
+}
+
+.btn-run:focus-visible {
+  outline: 2px solid var(--emerald-neon);
+  outline-offset: 3px;
+}
+
+.btn-key-toggle:focus-visible,
+.badge-pro:focus-visible,
+.preset-pill:focus-visible,
+.tab-btn:focus-visible,
+.modal-close:focus-visible {
+  outline: 2px solid var(--gold-primary);
+  outline-offset: 2px;
+}
+
+.btn-cta-stripe:focus-visible {
+  outline: 2px solid #FFFFFF;
+  outline-offset: 2px;
+}
+
+.btn-cta-solana:focus-visible {
+  outline: 2px solid var(--emerald-neon);
+  outline-offset: 2px;
+}
+
+.code-input:focus-visible,
+.input-license:focus-visible {
+  outline: 2px solid var(--gold-primary);
+  outline-offset: 1px;
+  border-color: var(--gold-primary);
+}
+
+input[type="range"]:focus-visible {
+  outline: 2px solid var(--gold-primary);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.checkbox-item input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--gold-primary);
+  outline-offset: 2px;
+}
+
+.footer-links a:focus-visible {
+  outline: 2px solid var(--gold-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* 3. Result Appearance Motion: Transform & Opacity Entrance */
+@keyframes resultReveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.status-pill.status-success,
+.status-pill.status-timeout,
+.status-pill.status-oom_killed,
+.status-pill.status-error {
+  animation: resultReveal 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+#diffTableBody tr {
+  animation: resultReveal 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* 4. Motion Accessibility Guardrail */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -136,14 +136,13 @@ pytest -v tests/test_capsule.py
 
 ---
 
-## 💼 Sovereign SaaS Licensing
+## ☕ 100% Free & Open-Access (Zero Paywalls)
 
-- **Founding Member License**: $19 lifetime access (regular $79).
-- **Dual Payment Rails**:
-  - **Stripe**: [Instant Stripe Checkout](https://buy.stripe.com/7sI7sA8hM2X8eFG8ww) (Credit Cards, Apple Pay, Google Pay)
-  - **Solana DePay**: Integration ID `428790dd-7ad1-407c-8ecf-c048c77a4cb8` (Receiver `GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK`)
-- **Instant Client-Side Activation**:
-  - Pass `?licensed=true` in the URL or enter your receipt email/key into the Pro Modal to permanently unlock all advanced security forensic outputs.
+Agent Capsule Jail is **100% free, open-access, and unlocked by default**. All kernel quota controls, forensic logs, and diff inspectors are fully accessible with zero paywalls.
+
+If you find this tool valuable, optional community support is welcome via:
+- **☕ Buy Us a Coffee (Stripe)**: [https://buy.stripe.com/3cIfZg27PdKo2D64Ocfw40X](https://buy.stripe.com/3cIfZg27PdKo2D64Ocfw40X)
+- **◎ Solana Tip Address**: `GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK` (`solana:GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK`)
 
 ---
 

@@ -28,7 +28,7 @@
 
   // State Store
   const state = {
-    isPro: false,
+    isPro: true,
     activeTab: 'cmd',
     running: false,
     stats: { ...DEFAULT_STATS },
@@ -153,30 +153,14 @@
   }
 
   function checkLicense() {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('licensed') === 'true' || params.get('pro') === 'true' || params.get('session_id')) {
-      localStorage.setItem('agent_capsule_pro_license', 'active');
-      localStorage.setItem('zoth_capsule_licensed', 'true');
-      localStorage.setItem('pro_licensed', 'true');
-      const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-      window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
-    }
-
-    const saved = (
-      localStorage.getItem('agent_capsule_pro_license') === 'active' ||
-      localStorage.getItem('zoth_capsule_licensed') === 'true' ||
-      localStorage.getItem('pro_licensed') === 'true'
-    );
-    if (saved) {
-      state.isPro = true;
-      applyProUi();
-    }
+    state.isPro = true;
+    applyProUi();
   }
 
   function applyProUi() {
     const badge = document.getElementById('licenseBadge') || els.badgePro || document.getElementById('badgePro') || document.getElementById('pro-badge');
     if (badge) {
-      badge.textContent = '⭐ PRO ACTIVE';
+      badge.textContent = '✦ 100% FREE & OPEN ACCESS';
       badge.className = 'badge-pro is-active';
     }
     const banner = els.salesBanner || document.getElementById('salesBanner');
@@ -272,25 +256,17 @@
     }
     if (els.btnUnlockForensic) {
       els.btnUnlockForensic.addEventListener('click', () => {
-        if (!state.isPro) openModal('paywall');
+        applyProUi();
       });
     }
     if (els.btnExportForensic) {
       els.btnExportForensic.addEventListener('click', () => {
-        if (!state.isPro) {
-          openModal('paywall');
-        } else {
-          exportForensicLog();
-        }
+        exportForensicLog();
       });
     }
     if (els.btnDownloadBundle) {
       els.btnDownloadBundle.addEventListener('click', () => {
-        if (!state.isPro) {
-          openModal('paywall');
-        } else {
-          downloadDeltaBundle();
-        }
+        downloadDeltaBundle();
       });
     }
 
@@ -745,27 +721,21 @@
     URL.revokeObjectURL(url);
   }
 
-  // DePay Web3 Checkout Trigger
+  // Solana Tip Trigger (Zero Paywalls)
   window.initiateDePayCheckout = function() {
-    if (window.DePayButtons && typeof window.DePayButtons.init === 'function') {
-      try {
-        window.DePayButtons.init({
-          integration: '428790dd-7ad1-407c-8ecf-c048c77a4cb8',
-          receiver: 'GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK',
-          amount: 19,
-          currency: 'USD'
-        });
-        return;
-      } catch (_) {}
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText('GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK');
+      alert('Solana Tip Address copied to clipboard: GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK');
+    } else {
+      window.open('solana:GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK', '_blank');
     }
-    window.open('https://depay.com/pay?integration=428790dd-7ad1-407c-8ecf-c048c77a4cb8&receiver=GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK&amount=19', '_blank');
   };
 
   // Utilities
   function escapeHtml(str) {
     if (!str) return '';
     return String(str)
-      .replace(/&/g, '&amp;')
+      .replace(/&/g, '&')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')

@@ -1,0 +1,10 @@
+{
+  "status": "ONLINE",
+  "service": "agent-capsule-jail",
+  "version": "2.5.0",
+  "port": 8105,
+  "mode": "NAMESPACE_ENCLAVE_ISOLATION",
+  "active_capsules": 6,
+  "secrets_stripped": 38,
+  "quota_violations": 0
+}

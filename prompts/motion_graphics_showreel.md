@@ -30,7 +30,7 @@
 - **Audio**: High-tech data stream chime sequence.
 
 ### Scene 4: Production Release & Sovereign Treasury Call (10.5s – 15.0s)
-- **Visual**: Full cockpit dashboard emerges with glowing real-time telemetry meters (CPU time: 28ms, RAM shielded: 512MB). Dual checkout badges (Stripe + Solana DePay) pulse softly.
+- **Visual**: Full cockpit dashboard emerges with glowing real-time telemetry meters (CPU time: 28ms, RAM shielded: 512MB). Dual checkout badges (Stripe + Solana Tip) pulse softly.
 - **Motion**: Elegant camera tilt and slow pull-back, ending on the product seal.
 - **Text Overlay**:
   - Primary: "AGENT CAPSULE JAIL" (Obsidian & Gold typography)

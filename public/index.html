@@ -36,8 +36,6 @@
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 
   <!-- DePay Web3 Payments Widget v13 -->
-  <script defer src="https://integrate.depay.com/widgets/v13.js"></script>
-
   <!-- Schema.org JSON-LD Graph for Frontier Crawlers & SGE -->
   <script type="application/ld+json">
   {
@@ -52,10 +50,10 @@
         "description": "Autonomous zero-dependency kernel enclave and ephemeral execution sandbox for AI agent subprocesses with strict resource quotas, secret stripping, and filesystem delta diffing.",
         "offers": {
           "@type": "Offer",
-          "price": "19.00",
+          "price": "0",
           "priceCurrency": "USD",
           "availability": "https://schema.org/InStock",
-          "url": "https://buy.stripe.com/4gMfZg9AheOsdhKbcAfw40L"
+          "url": "https://buy.stripe.com/3cIfZg27PdKo2D64Ocfw40X"
         },
         "author": {
           "@type": "Person",
@@ -92,7 +90,7 @@
             "name": "What payment rails are supported for founding licenses?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Founding member lifetime licenses ($19 vs $79 regular) are accepted via Stripe Payment Links (Credit Cards, Apple Pay, Google Pay) and the DePay Solana Web3 payment widget."
+              "text": "Founding member lifetime licenses (Free (100% Open Access) vs Free (100% Open Access) regular) are accepted via Stripe Payment Links (Credit Cards, Apple Pay, Google Pay) and the DePay Solana Web3 payment widget."
             }
           }
         ]
@@ -127,6 +125,11 @@
       margin: 0;
       padding: 0;
       -webkit-font-smoothing: antialiased;
+    }
+
+    html, body {
+      max-width: 100vw;
+      overflow-x: hidden;
     }
 
     body {
@@ -746,7 +749,7 @@
     }
 
     .forensic-payload.is-blurred {
-      filter: blur(6px);
+      filter: none;
       user-select: none;
       pointer-events: none;
     }
@@ -758,7 +761,7 @@
       width: 100%;
       height: 100%;
       background: rgba(8, 8, 11, 0.72);
-      backdrop-filter: blur(8px);
+      backdrop-filter: none;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -969,8 +972,49 @@
       }
     }
   </style>
+  <link rel="stylesheet" href="/wave.css">
+  <link rel="stylesheet" href="/wave-states.css">
+
+  <!-- Zoth 100% Open-Access & Buy Us a Coffee Invariant -->
+  <script id="zoth-open-access-init">
+    (function() {
+      try {
+        var keys = ['agent_audiocipher_pro', 'agent_cyber_turtle_pro', 'agent_datamosh_pro', 'agent_nexus3d_pro', 'agent_policy_pro', 'audiocipher_license', 'audiocipher_pro_licensed', 'badge3d_pro_licensed', 'certpath_pro_key', 'certpath_pro_licensed', 'cron_rhythm_pro_key', 'cron_rhythm_pro_licensed', 'cwv-speed-engine_pro_licensed', 'cwv_pro_licensed', 'cyber_turtle_pro_licensed', 'datamosh_pro_licensed', 'deepsearch-research-agent_pro_licensed', 'deepsearch_pro_licensed', 'entropy_studio_licensed', 'envguard-secrets-vault_pro_licensed', 'envguard_pro_license', 'etsy_connector_pro', 'jwt_guard_licensed', 'mdg_pro_licensed', 'neuro_pro_licensed', 'nexus3d_pro_licensed', 'omnipost_pro_key', 'omnipost_pro_licensed', 'osint_pro_licensed', 'payload-entropy-studio_pro_licensed', 'polyglot_pro_licensed', 'pro_licensed', 'promptmaster_pro_licensed', 'promptmaster_pro_active', 'robots-txt-auditor_pro_licensed', 'robots_pro_licensed', 'schema_illustrator_pro_licensed', 'sovereign_pro_licensed', 'subsweep-lead-scanner_pro_licensed', 'subsweep_licensed', 'turtle_pro_licensed', 'ufo_sacred_licensed', 'vector-search-engine_pro_licensed', 'vector_studio_pro_licensed', 'web-security-guard_pro_licensed', 'web_security_guard_licensed', 'yourdigitalspace_pro', 'zela_guide_pro_licensed', 'zoth_ascii_magic_pro', 'zoth_audiocipher_licensed', 'zoth_badge3d_licensed', 'zoth_cyber_turtle_licensed', 'zoth_datamosh_licensed', 'zoth_etsy_licensed', 'zoth_nexus3d_licensed', 'zoth_osint_licensed', 'zoth_policy_licensed', 'zoth_sacred_licensed', 'zoth_ufo_licensed'];
+        for (var i = 0; i < keys.length; i++) {
+          localStorage.setItem(keys[i], 'true');
+        }
+        localStorage.setItem('pm_license_v2', JSON.stringify({ method: 'open_access', ref: 'free_forever', at: '2026-01-01T00:00:00Z' }));
+        window.isPro = true;
+        window.isProLicensed = true;
+      } catch (e) {}
+    })();
+  </script>
+  <style id="zoth-open-access-override">
+    .paywall-overlay, .output-paywall-overlay, #outputPaywallOverlay, #schemaPaywallOverlay,
+    #transformerPaywallOverlay, #proPaywallModal, #licenseModal, #salesBanner, #founding-offer-banner,
+    #funnelHeroBanner, [data-alias="paywallOverlay"], [data-alias="founding-offer-banner"] {
+      display: none !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+    .paywall-wrap #outputPreview, .paywall-wrap #reportContentArea, .paywall-content,
+    .paywall-content.locked, .paywall-wrap.is-locked #outputPreview, .paywall-wrap.locked #outputPreview {
+      filter: none !important;
+      -webkit-filter: none !important;
+      user-select: auto !important;
+      pointer-events: auto !important;
+    }
+  </style>
+
 </head>
 <body>
+
+<div id="zoth-coffee-support-bar" style="background: linear-gradient(90deg, rgba(16,185,129,0.12), rgba(212,175,55,0.14)); border-bottom: 1px solid rgba(212,175,55,0.35); padding: 8px 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; z-index: 9999;">
+  <span style="color: #10B981; font-weight: 800;">✦ 100% FREE &amp; OPEN ACCESS · ZERO PAYWALLS</span>
+  <a href="https://buy.stripe.com/3cIfZg27PdKo2D64Ocfw40X" target="_blank" rel="noopener noreferrer" style="background: #D4AF37; color: #08080B; padding: 4px 12px; border-radius: 6px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">☕ Buy Us a Coffee (Stripe)</a>
+  <a href="solana:GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK" onclick="if(navigator.clipboard){navigator.clipboard.writeText('GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK');this.textContent='✓ Copied GG2eQb...dXoK!';}" style="background: rgba(20,241,149,0.15); color: #14F195; border: 1px solid rgba(20,241,149,0.45); padding: 4px 12px; border-radius: 6px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">◎ Solana Tip (GG2e...dXoK)</a>
+</div>
+
   <div class="ambient-glow" aria-hidden="true"></div>
 
   <div class="container">
@@ -985,34 +1029,14 @@
       </div>
       <div class="header-actions">
         <span class="badge" style="background: rgba(212,175,55,0.15); color: #F59E0B; border: 1px solid rgba(212,175,55,0.3); font-size: 11px; padding: 4px 8px; border-radius: 4px; font-weight: 700;">v2.5 SOVEREIGN</span>
-        <div id="licenseBadge" data-alias="badgePro" data-alt-id="pro-badge" class="badge-pro" title="Founding Lifetime Member Status">
-          ⚡ FREE TIER
+        <div id="licenseBadge" data-alias="badgePro" data-alt-id="pro-badge" class="badge-pro is-active" title="100% Free & Open Access">
+          ✦ 100% FREE &amp; OPEN ACCESS
         </div>
-        <button id="btnActivateKey" class="btn-key-toggle" aria-label="Activate Pro License Key">
-          ✦ Activate License
-        </button>
+        <a href="https://buy.stripe.com/3cIfZg27PdKo2D64Ocfw40X" target="_blank" rel="noopener noreferrer" class="btn-key-toggle" style="text-decoration: none;" aria-label="Support via Stripe">
+          ☕ Buy Us a Coffee
+        </a>
       </div>
     </header>
-
-    <!-- High-Converting Sales Funnel Banner Above Main Section -->
-    <section id="salesBanner" class="sales-banner" aria-label="Founding Member Lifetime Access">
-      <div class="sales-info">
-        <h2>
-          <span>⚡ Founding Member Lifetime Access</span>
-          <span class="price-tag">$19</span>
-          <span class="price-strike">$79</span>
-        </h2>
-        <p>Unlock unrestricted forensic kernel traces, automated delta commits, and multi-tenant quota escalation.</p>
-      </div>
-      <div class="sales-ctas">
-        <a href="https://buy.stripe.com/4gMfZg9AheOsdhKbcAfw40L" target="_blank" rel="noopener noreferrer" class="btn-cta-stripe" id="btn-stripe-funnel" aria-label="Purchase lifetime license via Stripe">
-          <span>★ Lifetime Stripe License ($19)</span>
-        </a>
-        <button type="button" id="btn-depay-solana" class="btn-cta-solana btn-depay-trigger" onclick="initiateDePayCheckout()" aria-label="Purchase lifetime license via Solana Web3">
-          <span>⚡ DePay Solana (SOL / USDC)</span>
-        </button>
-      </div>
-    </section>
 
     <!-- Telemetry Bento Counters -->
     <section class="telemetry-row" aria-label="Live System Telemetry">
@@ -1176,7 +1200,7 @@
       </div>
 
       <div class="forensic-wrapper">
-        <pre id="forensicPayload" class="forensic-payload is-blurred">{
+        <pre id="forensicPayload" class="forensic-payload">{
   "capsule_id": "cap_sample_enclave_audit",
   "isolation_grade": "SOVEREIGN_L3_EPHEMERAL",
   "audit_integrity": {
@@ -1191,22 +1215,6 @@
   },
   "flight_recorder_dispatched": true
 }</pre>
-
-        <!-- Centered Paywall Lock Card -->
-        <div id="forensicBlurOverlay" class="paywall-overlay" role="dialog" aria-label="Forensics Locked">
-          <div class="paywall-box">
-            <h3>★ Deep Forensic Logs Locked</h3>
-            <p>Raw kernel syscall traces, SHA256 cryptographic audit seals, and delta export bundles require Founding Pro Access.</p>
-            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-              <a href="https://buy.stripe.com/4gMfZg9AheOsdhKbcAfw40L" target="_blank" rel="noopener noreferrer" class="btn-cta-stripe" aria-label="Unlock Pro via Stripe">
-                <span>Unlock for $19</span>
-              </a>
-              <button type="button" id="btnUnlockForensic" class="preset-pill" aria-label="Enter License Key">
-                <span>Enter Key</span>
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -1221,49 +1229,6 @@
         <a href="/sitemap.xml" target="_blank">Sitemap</a>
       </div>
     </footer>
-  </div>
-
-  <!-- Paywall Modal -->
-  <div id="modalPaywall" data-alias="licenseModal" data-alt-id="paywallModal" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="paywallModalTitle">
-    <div class="modal-card">
-      <button type="button" id="btnClosePaywall" class="modal-close" aria-label="Close Paywall Modal">✕</button>
-      <h3 id="paywallModalTitle" class="modal-title">Upgrade to Founding Pro</h3>
-      <p class="modal-desc">Secure lifetime sovereign sandbox execution capabilities across your infrastructure.</p>
-
-      <ul class="feature-checklist">
-        <li><span>✓</span> Unrestricted Deep Kernel Syscall Forensics</li>
-        <li><span>✓</span> Automated Delta Commit & Synchronizer Engine</li>
-        <li><span>✓</span> Multi-Tenant High-Density Quota Escalation</li>
-        <li><span>✓</span> Zero-Leak API Credential Strip Guardrail</li>
-        <li><span>✓</span> Flight Recorder Telemetry Ingestion Support</li>
-        <li><span>✓</span> Lifetime Updates — Zero Subscription Recurring Fees</li>
-      </ul>
-
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-        <a href="https://buy.stripe.com/4gMfZg9AheOsdhKbcAfw40L" target="_blank" rel="noopener noreferrer" class="btn-cta-stripe" style="justify-content: center;" aria-label="Stripe Lifetime Checkout">
-          ★ Unlock Lifetime Access with Stripe ($19)
-        </a>
-        <button type="button" class="btn-cta-solana btn-depay-trigger" onclick="initiateDePayCheckout()" style="justify-content: center; width: 100%;" aria-label="Solana Web3 Checkout">
-          ⚡ DePay Solana Instant Checkout (SOL / USDC)
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Key Activation Modal -->
-  <div id="modalActivation" data-alias="activationModal" data-alt-id="activationModal" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="actModalTitle">
-    <div class="modal-card">
-      <button type="button" id="btnCloseActivation" class="modal-close" aria-label="Close Activation Modal">✕</button>
-      <h3 id="actModalTitle" class="modal-title">Activate Pro License</h3>
-      <p class="modal-desc">Enter your 16-character license key or Stripe receipt email to permanently unlock all features on this browser.</p>
-
-      <input type="text" id="licenseKeyInput" data-alias="inputLicenseKey" data-alt-id="licenseKeyInput" class="input-license" placeholder="CAPSULE-PRO-2026 or user@domain.com" aria-label="License Key or Email Input">
-      <div id="keyError" style="color: var(--red-alert); font-size: 0.8rem; margin-bottom: 12px; display: none;"></div>
-
-      <button type="button" id="btnSubmitKey" data-alias="btnActivateKey" data-alt-id="btn-modal-activate" class="btn-run" style="width: 100%;" aria-label="Submit License Key">
-        Verify & Unlock
-      </button>
-    </div>
   </div>
 
   <script src="/capsule_engine.js"></script>
