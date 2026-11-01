@@ -1,6 +1,6 @@
 """REST API Server & Static Asset Host for agent-capsule-jail.
 
-Engineered by Neal Frazier Tech (@1nc0gn30) • NullAI Platform.
+Engineered by 1nc0gn30 (@1nc0gn30) • NullAI Platform.
 100% Python Standard Library — Zero External Dependencies.
 """
 
@@ -180,6 +180,11 @@ class CapsuleApiHandler(BaseHTTPRequestHandler):
 
             try:
                 content = target.read_bytes()
+                if target.name == "index.html":
+                    tok = getattr(self.server, "exec_token", "") or ""
+                    if tok and b'name="capsule-token"' not in content:
+                        meta_tag = f'  <meta name="capsule-token" content="{tok}">\n</head>'.encode("utf-8")
+                        content = content.replace(b"</head>", meta_tag, 1)
                 self.send_response(HTTPStatus.OK)
                 self.send_header("Content-Type", mime)
                 self.send_header("Content-Length", str(len(content)))

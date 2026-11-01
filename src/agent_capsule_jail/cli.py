@@ -1,6 +1,6 @@
 """Unified Command Line Interface for agent-capsule-jail.
 
-Engineered by Neal Frazier Tech (@1nc0gn30) • NullAI Platform.
+Engineered by 1nc0gn30 (@1nc0gn30) • NullAI Platform.
 100% Python Standard Library — Zero External Dependencies.
 """
 
@@ -52,7 +52,7 @@ def print_banner() -> None:
     print(f"""{C_GOLD}
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║               🛡️ AGENT CAPSULE JAIL — KERNEL ENCLAVE ENGINE 🛡️              ║
-║         Neal Frazier Tech (@1nc0gn30) • Ephemeral Execution Sandbox          ║
+║         1nc0gn30 (@1nc0gn30) • Ephemeral Execution Sandbox          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝{C_RESET}""")
 
 

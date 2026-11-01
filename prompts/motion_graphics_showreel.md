@@ -35,6 +35,6 @@
 - **Text Overlay**:
   - Primary: "AGENT CAPSULE JAIL" (Obsidian & Gold typography)
   - Secondary: "Host Port :8105 • Zero Dependencies • 100% Python Stdlib"
-  - Attribution: "Engineered by Neal Frazier Tech (@1nc0gn30) • NullAI Platform"
+  - Attribution: "Engineered by 1nc0gn30 (@1nc0gn30) • NullAI Platform"
   - CTA: "Deploy Today — https://capsule.nullai.tech"
 - **Audio**: Resonant cinematic synth chord fading into a subtle sub-harmonic heartbeat.

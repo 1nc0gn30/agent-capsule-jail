@@ -1,6 +1,6 @@
 /**
  * Agent Capsule Jail — Interactive Web Engine & Telemetry Controller
- * Engineered by Neal Frazier Tech (@1nc0gn30) • NullAI Platform
+ * Engineered by 1nc0gn30 (@1nc0gn30) • NullAI Platform
  * 100% Client-Side Real Working Utility (Zero Fake Work)
  */
 
@@ -353,24 +353,17 @@
     };
 
     try {
+      const metaTok = (document.querySelector('meta[name="capsule-token"]') || {}).content || '';
       const send = () => fetch('/api/exec', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Capsule-Token': localStorage.getItem('capsuleToken') || ''
+          'X-Capsule-Token': metaTok || localStorage.getItem('capsuleToken') || ''
         },
         body: jsonSafeStringify(payload)
       });
 
       let resp = await send();
-      if (resp.status === 401) {
-        const tok = window.prompt('Capsule exec token (run `agent-capsule token` in a terminal):', '');
-        if (tok) {
-          localStorage.setItem('capsuleToken', tok.trim());
-          resp = await send();
-        }
-      }
-
       if (!resp.ok) {
         let detail = `${resp.status} ${resp.statusText}`;
         try { const j = await resp.json(); if (j && j.error) detail = j.error; } catch (_) {}
@@ -722,7 +715,7 @@
   }
 
   // Solana Tip Trigger (Zero Paywalls)
-  window.initiateDePayCheckout = function() {
+  window.initiateSolanaTipCheckout = function() {
     if (navigator.clipboard) {
       navigator.clipboard.writeText('GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK');
       alert('Solana Tip Address copied to clipboard: GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK');
