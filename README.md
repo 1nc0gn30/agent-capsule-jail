@@ -173,3 +173,60 @@ Capsule Jail runs arbitrary commands, so the API is locked down by default:
 - **Safe file I/O.** `initial_files` paths cannot escape the scratch dir; commits only go to `CAPSULE_COMMIT_ROOTS` (default `~/capsule-commits`, `:`-separated) and never follow or copy symlinks. Scratch dirs are always removed.
 
 `GET /api/health` reports the active `sandbox` mode.
+
+---
+
+## 🏛️ ZothOS v3.4, Zoth Studio v2 & Obsidian Second Brain Ecosystem
+
+```mermaid
+flowchart LR
+    subgraph ZothOS["🐧 ZothOS v3.4 CLI & Braille TUI"]
+        CLI["agent-capsule-jail --help / --json"]
+        TUI["agent-capsule-jail-tui<br/>Unicode U+2800 2x4 Braille"]
+    end
+
+    subgraph Workstation["⚡ Sovereign Workstation"]
+        WEB["https://capsule.nullai.tech<br/>REST API & /health"]
+    end
+
+    subgraph Studio["🌌 Zoth Studio v2 & ZothOS-Lite"]
+        GODMODE["http://127.0.0.1:3000/tools/agent-capsule-jail<br/>God-Mode Workstation"]
+        LITE["http://127.0.0.1:8145<br/>ZothOS-Lite Web Desktop"]
+    end
+
+    subgraph SecondBrain["💎 Obsidian Second Brain & STDP"]
+        TRACKER["http://127.0.0.1:8151<br/>Zoth Obsidian Tracker"]
+        NEURO["http://127.0.0.1:8094<br/>Neuro-Memory STDP Cortex"]
+        NOTE["Studio/Tools/Studio agent-capsule-jail.md"]
+    end
+
+    CLI --> WEB
+    TUI --> WEB
+    WEB <--> GODMODE
+    WEB <--> LITE
+    WEB --> TRACKER
+    TRACKER <--> NOTE
+    NOTE <--> NEURO
+```
+
+### Cross-Surface Integration Matrix
+
+| Surface | Endpoint / Binary | Capabilities |
+| :--- | :--- | :--- |
+| **Standalone Workstation** | `https://capsule.nullai.tech` | 100% Free & Open-Access Web Deck, live `/health` & REST telemetry |
+| **Zoth Studio v2 Route** | `http://127.0.0.1:3000/tools/agent-capsule-jail` | Interactive God-Mode component inside Zoth Studio (`https://zoth.nullai.tech`) |
+| **ZothOS v3.4 CLI & TUI** | `agent-capsule-jail` / `agent-capsule-jail-tui` | Global binary in `/usr/local/bin/` with Unicode `U+2800` Braille TUI & `--json` output |
+| **ZothOS-Lite Web Desktop** | `http://127.0.0.1:8145` | Browser-native KDE-style window manager & terminal launcher |
+| **Zoth Obsidian Tracker** | `http://127.0.0.1:8151` | Interactive Obsidian Second Brain vault explorer (`~/Documents/Obsidian Vault/Studio/Tools/Studio agent-capsule-jail.md`) |
+| **Neuro-Memory STDP Cortex** | `http://127.0.0.1:8094` | 3-Factor STDP synaptic memory daemon & 21-tool MCP server |
+
+```bash
+# Inspect CLI & Unicode U+2800 Braille TUI on ZothOS v3.4
+agent-capsule-jail --help
+agent-capsule-jail-tui --status
+agent-capsule-jail-tui --json
+
+# Verify Second Brain Vault & 12-Step Verification Gallery on :8151
+zoth-obsidian-tracker --verify
+```
+
