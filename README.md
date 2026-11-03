@@ -64,7 +64,7 @@ Guards the host operating system against untrusted or hallucinated agent code ex
 ### 3. Commit Scratch Changes to a Target Directory
 ```bash
 ./bin/agent-capsule exec \
-  --commit-dir /home/zoth/workspace/output \
+  --commit-dir ~/workspace/output \
   -- python3 -c "with open('output.txt', 'w') as f: f.write('Verified artifact')"
 ```
 
