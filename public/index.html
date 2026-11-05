@@ -1233,5 +1233,37 @@
 
   <script src="/capsule_engine.js"></script>
   <script src="/assets/sovereign-upgrade.js" defer></script>
+
+  <script src="/sovereign_tutorial.js"></script>
+  <script>
+    window.addEventListener("DOMContentLoaded", function() {
+      if (window.createSovereignTutorial) {
+        window.createSovereignTutorial({
+          toolId: "agent-capsule-jail",
+          toolName: "Agent Capsule Jail",
+          tagline: "Lock rogue AI agents inside a virtual sandbox before they break your system!",
+          accentColor: "#EF4444",
+          steps: [
+            {
+              icon: "🛡️",
+              title: "What is an Agent Jail?",
+              desc: "Autonomous coding agents can run bash commands, delete files, or send data. A Capsule Jail puts them in a bulletproof box where they can only touch safe folders."
+            },
+            {
+              icon: "🔒",
+              title: "Select Quarantine Rules",
+              desc: "Choose between Read-Only filesystem, Network Isolation, or Memory Capping with single-click toggle chips."
+            },
+            {
+              icon: "⚡",
+              title: "Live Container Telemetry",
+              desc: "Watch real-time syscalls, network ingress/egress drops, and audit logs with zero-egress enforcement."
+            }
+          ]
+        });
+      }
+    });
+  </script>
+
 </body>
 </html>
