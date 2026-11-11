@@ -175,8 +175,8 @@ def cmd_status(args: argparse.Namespace) -> int:
     """Query live server status and display health metrics."""
     url = f"http://127.0.0.1:{args.port}/api/stats"
     health_url = f"http://127.0.0.1:{args.port}/api/health"
+    as_json = bool(getattr(args, "json", False))
 
-    print_banner()
     try:
         req = urllib.request.Request(health_url)
         with urllib.request.urlopen(req, timeout=2.0) as resp:
@@ -186,6 +186,19 @@ def cmd_status(args: argparse.Namespace) -> int:
         with urllib.request.urlopen(req_stats, timeout=2.0) as resp:
             stats = json.loads(resp.read().decode("utf-8"))
 
+        if as_json:
+            print(json.dumps({
+                "service": "agent-capsule-jail",
+                "version": "2.5.0",
+                "online": True,
+                "port": args.port,
+                "sandbox": sandbox_mode(),
+                "health": health,
+                "stats": stats,
+            }, indent=2))
+            return 0
+
+        print_banner()
         print(f"{C_GREEN}● ONLINE{C_RESET} — agent-capsule-jail on port {args.port}")
         print(f"Uptime:             {stats.get('uptime_seconds', 0)}s")
         print(f"Total Capsules:     {stats.get('total_capsules', 0)}")
@@ -199,6 +212,17 @@ def cmd_status(args: argparse.Namespace) -> int:
         return 0
     except Exception as e:
         mode = sandbox_mode()
+        if as_json:
+            print(json.dumps({
+                "service": "agent-capsule-jail",
+                "version": "2.5.0",
+                "online": False,
+                "port": args.port,
+                "sandbox": mode,
+                "note": str(e),
+            }, indent=2))
+            return 0
+        print_banner()
         print(f"{C_GREEN}● LOCAL ENCLAVE READY{C_RESET} — Kernel Sandbox Mode: {C_CYAN}{mode}{C_RESET} (Daemon API note: {e})")
         return 0
 
@@ -222,6 +246,10 @@ def main() -> None:
         prog="agent-capsule",
         description="Autonomous ephemeral sandboxed execution engine and kernel enclave for AI agents.",
     )
+    parser.add_argument("-v", "--version", action="version", version="agent-capsule-jail 2.5.0")
+    parser.add_argument("--status", action="store_true", help="Inspect status of running capsule daemon")
+    parser.add_argument("--json", action="store_true", help="Emit telemetry as JSON")
+    parser.add_argument("--port", type=int, default=8105, help="Daemon port (default: 8105)")
     subparsers = parser.add_subparsers(dest="subcommand", help="Available subcommands")
 
     # Command: exec
@@ -247,12 +275,16 @@ def main() -> None:
     # Command: status
     p_status = subparsers.add_parser("status", help="Inspect status of running capsule daemon")
     p_status.add_argument("--port", type=int, default=8105, help="Daemon port (default: 8105)")
+    p_status.add_argument("--json", action="store_true", help="Emit telemetry as JSON")
 
     # Command: test
     subparsers.add_parser("test", help="Run automated unit and integration tests")
     subparsers.add_parser("token", help="Print the API exec token (for the web cockpit / API clients)")
 
     args = parser.parse_args()
+
+    if getattr(args, "status", False) or (getattr(args, "json", False) and not args.subcommand):
+        sys.exit(cmd_status(args))
 
     if args.subcommand == "exec":
         sys.exit(cmd_exec(args))

@@ -1,232 +1,110 @@
-<div align="center">
-  <img src="assets/hero-banner.svg" alt="Agent Capsule Jail — Sovereign Architecture Banner" width="100%" />
-</div>
-
-<br />
-
 # Agent Capsule Jail
 
-[![Zero External Dependencies](https://img.shields.io/badge/dependencies-0%20external%20pip-gold.svg)](pyproject.toml)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
-[![NullAI Platform](https://img.shields.io/badge/platform-NullAI-black.svg)](https://nullai.tech)
+![Agent Capsule Jail Hero Banner](assets/hero-banner.svg)
 
-**Ephemeral Kernel-Enclave Execution Sandbox, Resource Quotas & Filesystem Diff Engine for Sovereign AI Agents.**
+**Agent Capsule Jail** (`agent-capsule-jail`) is a zero-dependency Python 3.10+ ephemeral execution sandbox, POSIX `resource` quota enforcer, secret-stripping runner, and HTTP enclave server (`127.0.0.1:8105`) for AI agents. It isolates untrusted commands and Python scripts inside `bubblewrap` (`bwrap`) Linux namespaces with network isolation by default, strict `RLIMIT_AS` / `RLIMIT_CPU` / `RLIMIT_NPROC` / `RLIMIT_FSIZE` ceilings, and post-run filesystem diffing.
 
-Guards the host operating system against untrusted or hallucinated agent code execution by enforcing POSIX resource envelopes, scrubbed environment leases, SHA-256 filesystem delta tracking, and atomic commit/discard workflows.
-
----
-
-## ⚡ Key Architectural Capabilities
-
-- **100% Python Standard Library (Zero Pip Dependencies)**:
-  - Powered exclusively by Python 3.10+ native modules (`http.server`, `socket`, `resource`, `subprocess`, `os`, `signal`, `shutil`, `tempfile`, `json`, `threading`, `dataclasses`, `time`). Zero runtime pip bloat.
-- **Kernel-Enforced POSIX Resource Limits (`resource.setrlimit`)**:
-  - `RLIMIT_CPU`: Hard execution timeout kills runaway CPU-bound agent scripts (default: 30s).
-  - `RLIMIT_AS` & `RLIMIT_DATA`: Restricts maximum virtual address space and data memory to prevent memory exhaustion (default: 512MB).
-  - `RLIMIT_NPROC`: Dynamic fork-bomb mitigation that queries host processes to enforce safe concurrency ceilings without impacting host daemons.
-  - `RLIMIT_FSIZE`: Caps maximum output file write capacity (default: 50MB) to thwart disk flooding attacks.
-- **Strict Environment Sanitization**:
-  - Automatically scrubs high-risk host secrets (`OPENAI_API_KEY`, `STRIPE_KEY`, `AWS_SECRET_ACCESS_KEY`, `GITHUB_TOKEN`, `SSH_AUTH_SOCK`, `DATABASE_URL`, and token strings) from the spawned process environment unless granted via an explicit permission lease.
-- **Pre/Post Filesystem Delta Fingerprinting**:
-  - Captures recursive SHA-256 directory snapshots before command execution and compares against the final state to catalog:
-    - **Created Files**: New artifacts, dependencies, or generated scripts.
-    - **Modified Files**: Changed configuration or state files with byte-size deltas.
-    - **Deleted Files**: Removed or unlinked files.
-- **Discard vs. Commit Execution Modes**:
-  - **Discard (Default)**: Ephemeral execution. The temporary scratch directory is completely unlinked and wiped upon completion.
-  - **Commit**: Atomically merges all modified and created files into a designated destination directory after operator verification.
-- **Flight Recorder Telemetry Forwarding**:
-  - Emits structured telemetry events (`capsule.start`, `capsule.complete`, `capsule.error`) to `agent-flight-recorder` (`http://127.0.0.1:8104/api/ingest`) if online.
-- **Avant-Garde Glassmorphic Web Cockpit (Port 8105)**:
-  - Dark obsidian UI (`#08080B`) with gold accents (`#D4AF37`) and emerald safety badges (`#10B981`).
-  - Interactive web console with real-time probe presets, live stdout/stderr stream, memory/CPU gauges, and filesystem diff inspector.
+- **Zoth Studio v2 Dossier**: [https://zoth.nullai.tech/tools/agent-capsule-jail](https://zoth.nullai.tech/tools/agent-capsule-jail)
+- **Repository**: [https://github.com/1nc0gn30/agent-capsule-jail](https://github.com/1nc0gn30/agent-capsule-jail)
+- **Default Loopback Endpoint**: `http://127.0.0.1:8105`
 
 ---
 
-## 🚀 Quickstart
+## Overview
 
-### 1. Execute a Command Inside an Isolated Capsule
-```bash
-./bin/agent-capsule exec -- python3 -c "print('Hello from kernel enclave sandbox')"
-```
+- **Linux Namespace Enclave (`CapsuleRunner`)**: Uses `bwrap` (`--unshare-all`, read-only `/usr`, `/bin`, `/lib`, isolated `/tmp` and scratch workdir) with network unshared unless `--allow-network` is explicitly passed. Refuses remote execution when `bwrap` is absent unless `CAPSULE_ALLOW_UNSANDBOXED=1` is set by the operator.
+- **POSIX Resource Quotas (`ResourceLimits`)**: Enforces wall/CPU timeout (`timeout_sec`), address-space ceiling (`memory_mb`), max child processes (`max_procs`), and max file write size (`max_fsize`).
+- **Environment Sanitization**: Strips host environment variables (`OPENAI_API_KEY`, `AWS_SECRET_ACCESS_KEY`, SSH/GPG sockets, tokens) before spawning the capsule, passing only explicitly allowlisted variable names (`--env`).
+- **Authenticated `/api/exec` Endpoint**: Generates a per-user secret token stored in `~/.config/agent-capsule-jail/token` (`0600`) required via `X-Capsule-Token` header on remote execution calls.
+- **Forensic Filesystem Diffs**: Computes created, modified, and deleted files in the ephemeral scratch directory before destroying it (or optionally committing approved artifacts with `--commit --dest <dir>`).
 
-### 2. Run with Custom Resource Limits & Allowed Environment Keys
-```bash
-./bin/agent-capsule exec \
-  --timeout 10 \
-  --memory 256 \
-  --max-filesize 10 \
-  --allow-env OPENAI_API_KEY \
-  -- python3 -c "import os; print('Key present:', 'OPENAI_API_KEY' in os.environ)"
-```
+---
 
-### 3. Commit Scratch Changes to a Target Directory
-```bash
-./bin/agent-capsule exec \
-  --commit-dir ~/workspace/output \
-  -- python3 -c "with open('output.txt', 'w') as f: f.write('Verified artifact')"
-```
+## Architecture
 
-### 4. Start the Web Cockpit & REST API Daemon
-```bash
-./bin/agent-capsule serve --port 8105
-```
-Open [http://localhost:8105](http://localhost:8105) to access the interactive web console.
-
-### 5. Check System Telemetry Status
-```bash
-./bin/agent-capsule status
+```text
+Agent / Operator Request (CLI or POST /api/exec + X-Capsule-Token)
+        │
+        ▼
+CapsuleRunner
+   ├── Environment Scrubber (allowlist-only env vars)
+   ├── Scratch Workspace + Pre-Snapshot Hash Tree
+   ├── bwrap Namespace Jail (--unshare-all, --die-with-parent) + POSIX rlimits
+   └── Post-Snapshot Diff + RSS/CPU Telemetry ──► Flight Recorder (:8104)
 ```
 
 ---
 
-## 🛡 REST API Endpoints (Port 8105)
+## Quickstart
 
-| Endpoint | Method | Description |
-|:---|:---:|:---|
-| `/api/exec` | `POST` | Executes a command in a sandboxed capsule with configurable limits |
-| `/api/stats` | `GET` | Aggregated telemetry: total runs, successes, timeouts, RAM saved |
-| `/api/capsules` | `GET` | Historical run catalog with exit codes, resource peaks, and filesystem diffs |
-| `/api/health` | `GET` | Daemon liveness and health status probe |
-
-### Example Execution Request:
 ```bash
-curl -X POST http://127.0.0.1:8105/api/exec \
-  -H "Content-Type: application/json" \
-  -d '{
-    "command": "python3 -c \"print(2 ** 64)\"",
-    "timeout_sec": 5,
-    "memory_mb": 256,
-    "allowed_env": ["PATH"]
-  }'
+git clone https://github.com/1nc0gn30/agent-capsule-jail.git
+cd agent-capsule-jail
+python3 -m pip install -e .
+
+# Start the HTTP Cockpit & Enclave API on 127.0.0.1:8105
+agent-capsule serve --host 127.0.0.1 --port 8105
 ```
 
-### Example Execution Response:
-```json
-{
-  "capsule_id": "capsule-8a3c9f21",
-  "status": "success",
-  "exit_code": 0,
-  "stdout": "18446744073709551616\n",
-  "stderr": "",
-  "execution_time_ms": 32.4,
-  "cpu_time_ms": 18.2,
-  "max_rss_mb": 14.8,
-  "filesystem_delta": {
-    "created": [],
-    "modified": [],
-    "deleted": []
-  }
-}
-```
+Or run directly from the checkout:
 
----
-
-## 🧪 Testing Suite
-
-Run the full automated test suite (10/10 tests):
 ```bash
-./bin/agent-capsule test
+python3 server.py --port 8105
 ```
-Or via `pytest`:
+
+Open `http://127.0.0.1:8105` in your browser (the server injects the local `capsule-token` meta tag for same-host browser sessions).
+
+---
+
+## CLI & ZothOS v3.4.0 Integration
+
+`agent-capsule` (`./bin/agent-capsule` and `./bin/agent-capsule-jail-tui`) executes isolated commands directly or inspects the `:8105` daemon:
+
 ```bash
-pytest -v tests/test_capsule.py
+# Inspect sandbox mode (bwrap) and daemon telemetry
+agent-capsule --status
+agent-capsule --json
+agent-capsule status --port 8105 --json
+
+# Print the X-Capsule-Token for authenticated /api/exec clients
+agent-capsule token
+
+# Execute an isolated command (network disabled, 10s timeout, 256 MB ceiling)
+agent-capsule exec --timeout 10 --memory 256 --json -- python3 -c "print(2 ** 32)"
+
+# Execute a local Python script inside the ephemeral scratch jail
+agent-capsule exec --script path/to/script.py --max-procs 16 --max-fsize 10
 ```
 
 ---
 
-## ☕ 100% Free & Open-Access (Zero Paywalls)
+## REST API Reference
 
-Agent Capsule Jail is **100% free, open-access, and unlocked by default**. All kernel quota controls, forensic logs, and diff inspectors are fully accessible with zero paywalls.
+`POST /api/exec` enforces both local-origin CSRF checks and `X-Capsule-Token` authentication (`agent-capsule token`).
 
-If you find this tool valuable, optional community support is welcome via:
-- **☕ Buy Us a Coffee (Stripe)**: [https://buy.stripe.com/3cIfZg27PdKo2D64Ocfw40X](https://buy.stripe.com/3cIfZg27PdKo2D64Ocfw40X)
-- **◎ Solana Tip Address**: `GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK` (`solana:GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK`)
-
----
-
-## 📜 Attribution
-
-Engineered by **1nc0gn30 • NullAI** ([@1nc0gn30](https://github.com/1nc0gn30)) • [NullAI Platform](https://nullai.tech)
-
-## Network exposure
-
-The server binds to `127.0.0.1` by default. To reach it from other devices,
-opt in explicitly with `--host 0.0.0.0` (or set `ZOTH_BIND_HOST=0.0.0.0`; an IP
-in `HOST` is also honoured, a plain hostname is ignored) and only on a trusted
-network.
-
-Browser requests are only accepted from `localhost` / `127.0.0.1` pages:
-cross-site POSTs get `403` and CORS never answers `*`, so a website you visit
-can't drive this local server. CLI and agent clients are unaffected.
-
-## Security Model (`/api/exec`)
-
-Capsule Jail runs arbitrary commands, so the API is locked down by default:
-
-- **Real isolation (bubblewrap).** Every capsule runs under `bwrap`: read-only host root, empty private `/home`, `/root`, `/tmp` and `/run` (only the scratch dir is writable), all namespaces unshared, all capabilities dropped, and `no_new_privs` set so `sudo`/setuid binaries cannot escalate. **No network** unless the request sets `"allow_network": true` (CLI: `--allow-network`).
-- **No bwrap, no exec.** If bubblewrap is missing, exec is refused. `CAPSULE_ALLOW_UNSANDBOXED=1` opts into rlimits-only mode (not isolation).
-- **Exec token.** `POST /api/exec` requires `X-Capsule-Token: <token>` (or `Authorization: Bearer <token>`). The token is generated on first start at `~/.config/agent-capsule-jail/token` (mode 0600); print it with `agent-capsule token`. `CAPSULE_TOKEN` overrides. The web cockpit asks for it once.
-- **Local origins only.** Cross-origin browser requests are rejected (403) even with a token; the server binds to 127.0.0.1.
-- **Optional allowlist.** `CAPSULE_ALLOWED_COMMANDS=python3,node,echo` restricts the program that may be launched (shell-form commands need `sh` in the list).
-- **Safe file I/O.** `initial_files` paths cannot escape the scratch dir; commits only go to `CAPSULE_COMMIT_ROOTS` (default `~/capsule-commits`, `:`-separated) and never follow or copy symlinks. Scratch dirs are always removed.
-
-`GET /api/health` reports the active `sandbox` mode.
-
----
-
-## 🏛️ ZothOS v3.4, Zoth Studio v2 & Obsidian Second Brain Ecosystem
-
-```mermaid
-flowchart LR
-    subgraph ZothOS["🐧 ZothOS v3.4 CLI & Braille TUI"]
-        CLI["agent-capsule-jail --help / --json"]
-        TUI["agent-capsule-jail-tui<br/>Unicode U+2800 2x4 Braille"]
-    end
-
-    subgraph Workstation["⚡ Sovereign Workstation"]
-        WEB["https://capsule.nullai.tech<br/>REST API & /health"]
-    end
-
-    subgraph Studio["🌌 Zoth Studio v2 & ZothOS-Lite"]
-        GODMODE["http://127.0.0.1:3000/tools/agent-capsule-jail<br/>God-Mode Workstation"]
-        LITE["http://127.0.0.1:8145<br/>ZothOS-Lite Web Desktop"]
-    end
-
-    subgraph SecondBrain["💎 Obsidian Second Brain & STDP"]
-        TRACKER["http://127.0.0.1:8151<br/>Zoth Obsidian Tracker"]
-        NEURO["http://127.0.0.1:8094<br/>Neuro-Memory STDP Cortex"]
-        NOTE["Studio/Tools/Studio agent-capsule-jail.md"]
-    end
-
-    CLI --> WEB
-    TUI --> WEB
-    WEB <--> GODMODE
-    WEB <--> LITE
-    WEB --> TRACKER
-    TRACKER <--> NOTE
-    NOTE <--> NEURO
-```
-
-### Cross-Surface Integration Matrix
-
-| Surface | Endpoint / Binary | Capabilities |
+| Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| **Standalone Workstation** | `https://capsule.nullai.tech` | 100% Free & Open-Access Web Deck, live `/health` & REST telemetry |
-| **Zoth Studio v2 Route** | `http://127.0.0.1:3000/tools/agent-capsule-jail` | Interactive God-Mode component inside Zoth Studio (`https://zoth.nullai.tech`) |
-| **ZothOS v3.4 CLI & TUI** | `agent-capsule-jail` / `agent-capsule-jail-tui` | Global binary in `/usr/local/bin/` with Unicode `U+2800` Braille TUI & `--json` output |
-| **ZothOS-Lite Web Desktop** | `http://127.0.0.1:8145` | Browser-native KDE-style window manager & terminal launcher |
-| **Zoth Obsidian Tracker** | `http://127.0.0.1:8151` | Interactive Obsidian Second Brain vault explorer (`~/Documents/Obsidian Vault/Studio/Tools/Studio agent-capsule-jail.md`) |
-| **Neuro-Memory STDP Cortex** | `http://127.0.0.1:8094` | 3-Factor STDP synaptic memory daemon & 21-tool MCP server |
+| `GET` | `/` | Web enclave workstation (`public/index.html`) |
+| `GET` | `/health`, `/api/health` | Service health, active `sandbox` mode (`bwrap`), and capsule count |
+| `GET` | `/api/stats` | Cumulative capsules, successes, timeouts, OOM kills, CPU ms, and Flight Recorder events |
+| `GET` | `/api/capsules?limit=50` | Recent capsule execution records and forensic diffs |
+| `POST` | `/api/exec` | Execute command/script (`X-Capsule-Token` header; JSON body `{"command", "script", "timeout_sec", "memory_mb", "allow_network"}`) |
+
+---
+
+## Testing & Verification
 
 ```bash
-# Inspect CLI & Unicode U+2800 Braille TUI on ZothOS v3.4
-agent-capsule-jail --help
-agent-capsule-jail-tui --status
-agent-capsule-jail-tui --json
-
-# Verify Second Brain Vault & 12-Step Verification Gallery on :8151
-zoth-obsidian-tracker --verify
+PYTHONPATH=src python3 -m pytest -q
+./bin/agent-capsule --help
+./bin/agent-capsule --json
 ```
 
+---
+
+## Support & License
+
+100% free and open-source software under the MIT License.
+
+- Optional support: [Buy Us a Coffee via Stripe](https://buy.stripe.com/3cIfZg27PdKo2D64Ocfw40X)
+- Engineered by **1nc0gn30** (`@1nc0gn30`, [https://1nc0gn30.si](https://1nc0gn30.si)) • **NullAI** ([https://nullai.tech](https://nullai.tech))
