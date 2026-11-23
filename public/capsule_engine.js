@@ -98,16 +98,7 @@
 
   function cacheDom() {
     els = {
-      badgePro: document.getElementById('badgePro') || document.getElementById('pro-badge'),
-      btnActivateKey: document.getElementById('btnActivateKey'),
-      salesBanner: document.getElementById('salesBanner'),
-      modalPaywall: document.getElementById('modalPaywall') || document.getElementById('paywallModal'),
-      modalActivation: document.getElementById('modalActivation') || document.getElementById('activationModal'),
-      btnClosePaywall: document.getElementById('btnClosePaywall'),
-      btnCloseActivation: document.getElementById('btnCloseActivation'),
-      inputLicenseKey: document.getElementById('inputLicenseKey') || document.getElementById('licenseKeyInput'),
-      btnSubmitKey: document.getElementById('btnSubmitKey') || document.getElementById('btn-modal-activate'),
-      keyError: document.getElementById('keyError'),
+      badgePro: document.getElementById('licenseBadge') || document.getElementById('badgePro'),
 
       // Inputs
       tabCmd: document.getElementById('tabCmd'),
@@ -134,10 +125,8 @@
       diffEmptyMessage: document.getElementById('diffEmptyMessage'),
       diffSummaryBadge: document.getElementById('diffSummaryBadge'),
 
-      // Forensics & Paywall
+      // Forensics & Export
       forensicPayload: document.getElementById('forensicPayload'),
-      forensicBlurOverlay: document.getElementById('forensicBlurOverlay'),
-      btnUnlockForensic: document.getElementById('btnUnlockForensic'),
       btnExportForensic: document.getElementById('btnExportForensic'),
       btnDownloadBundle: document.getElementById('btnDownloadBundle'),
       btnCopyStdout: document.getElementById('btnCopyStdout'),
@@ -158,43 +147,16 @@
   }
 
   function applyProUi() {
-    const badge = document.getElementById('licenseBadge') || els.badgePro || document.getElementById('badgePro') || document.getElementById('pro-badge');
+    const badge = els.badgePro || document.getElementById('licenseBadge');
     if (badge) {
       badge.textContent = '✦ 100% FREE & OPEN ACCESS';
       badge.className = 'badge-pro is-active';
-    }
-    const banner = els.salesBanner || document.getElementById('salesBanner');
-    if (banner) {
-      banner.style.display = 'none';
-    }
-    const overlay = els.forensicBlurOverlay || document.getElementById('forensicBlurOverlay');
-    if (overlay) {
-      overlay.style.display = 'none';
     }
     const payload = els.forensicPayload || document.getElementById('forensicPayload');
     if (payload) {
       payload.classList.remove('is-blurred');
     }
   }
-
-  window.activateLicenseKey = function(key) {
-    const k = (typeof key === 'string' && key) ? key : (document.getElementById('licenseKeyInput')?.value || document.getElementById('inputLicenseKey')?.value || '');
-    if (k.length >= 4) {
-      localStorage.setItem('agent_capsule_pro_license', 'active');
-      localStorage.setItem('zoth_capsule_licensed', 'true');
-      localStorage.setItem('pro_licensed', 'true');
-      state.isPro = true;
-      applyProUi();
-      closeModal('activation');
-      closeModal('paywall');
-      return true;
-    }
-    return false;
-  };
-
-  window.openLicenseModal = function() {
-    openModal('paywall');
-  };
 
   function bindEvents() {
     // Presets
@@ -244,21 +206,7 @@
       });
     }
 
-    // Modals & Licensing
-    if (els.btnActivateKey) {
-      els.btnActivateKey.addEventListener('click', () => openModal('activation'));
-    }
-    if (els.btnClosePaywall) {
-      els.btnClosePaywall.addEventListener('click', () => closeModal('paywall'));
-    }
-    if (els.btnCloseActivation) {
-      els.btnCloseActivation.addEventListener('click', () => closeModal('activation'));
-    }
-    if (els.btnUnlockForensic) {
-      els.btnUnlockForensic.addEventListener('click', () => {
-        applyProUi();
-      });
-    }
+    // Forensic Exports (100% Open Access)
     if (els.btnExportForensic) {
       els.btnExportForensic.addEventListener('click', () => {
         exportForensicLog();
@@ -269,18 +217,6 @@
         downloadDeltaBundle();
       });
     }
-
-    if (els.btnSubmitKey) {
-      els.btnSubmitKey.addEventListener('click', submitLicenseKey);
-    }
-
-    // Close modals on escape
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        closeModal('paywall');
-        closeModal('activation');
-      }
-    });
   }
 
   function switchTab(mode) {
@@ -630,59 +566,6 @@
     els.btnRun.disabled = isRunning;
     els.btnRun.classList.toggle('loading', isRunning);
     els.btnRun.textContent = isRunning ? '⚡ Enforcing Sandbox...' : '⚡ Run in Capsule Jail';
-  }
-
-  function openModal(id) {
-    if (id === 'paywall') {
-      const modal = els.modalPaywall || document.getElementById('modalPaywall') || document.getElementById('paywallModal');
-      if (modal) modal.style.display = 'flex';
-    } else if (id === 'activation') {
-      const modal = els.modalActivation || document.getElementById('modalActivation') || document.getElementById('activationModal');
-      if (modal) {
-        modal.style.display = 'flex';
-        const input = els.inputLicenseKey || document.getElementById('inputLicenseKey') || document.getElementById('licenseKeyInput');
-        if (input) input.focus();
-      }
-    }
-  }
-
-  function closeModal(id) {
-    if (id === 'paywall') {
-      const modal = els.modalPaywall || document.getElementById('modalPaywall') || document.getElementById('paywallModal');
-      if (modal) modal.style.display = 'none';
-    } else if (id === 'activation') {
-      const modal = els.modalActivation || document.getElementById('modalActivation') || document.getElementById('activationModal');
-      if (modal) modal.style.display = 'none';
-    }
-  }
-
-  function submitLicenseKey() {
-    const input = els.inputLicenseKey || document.getElementById('inputLicenseKey') || document.getElementById('licenseKeyInput');
-    const key = (input ? input.value : '').trim();
-    if (!key) {
-      showKeyError('Please provide a valid license key or receipt email.');
-      return;
-    }
-    // Accept valid format or founding member proof
-    if (key.length >= 4 || key.includes('@') || key.toLowerCase().includes('capsule') || key.toLowerCase().includes('pro')) {
-      localStorage.setItem('agent_capsule_pro_license', 'active');
-      localStorage.setItem('zoth_capsule_licensed', 'true');
-      localStorage.setItem('pro_licensed', 'true');
-      state.isPro = true;
-      applyProUi();
-      closeModal('activation');
-      closeModal('paywall');
-      console.log('⭐ Sovereign Pro License Activated Permanently!');
-    } else {
-      showKeyError('Invalid key format. Please enter a valid 16-character license key or Stripe receipt email.');
-    }
-  }
-
-  function showKeyError(msg) {
-    if (els.keyError) {
-      els.keyError.textContent = msg;
-      els.keyError.style.display = 'block';
-    }
   }
 
   function exportForensicLog() {
