@@ -1,6 +1,6 @@
 """Unified Command Line Interface for agent-capsule-jail.
 
-Engineered by 1nc0gn30 (@1nc0gn30) • NullAI Platform.
+Engineered by Neal Frazier Tech (@1nc0gn30) • NullAI Platform.
 100% Python Standard Library — Zero External Dependencies.
 """
 
@@ -17,8 +17,27 @@ import urllib.request
 from pathlib import Path
 from typing import List, Optional
 
-from .capsule import CapsuleConfig, CapsuleRunner, CapsuleSecurityError, ResourceLimits, sandbox_mode
-from .server import TOKEN_PATH, CapsuleServer, load_or_create_token
+from . import __version__
+from .capsule import (LIMIT_BOUNDS, CapsuleConfig, CapsuleNetworkDenied, CapsuleRunner, CapsuleSecurityError,
+                      ResourceLimits, network_opt_in_enabled, pids_enforcement, sandbox_mode)
+from .server import CapsuleServer, load_or_create_token
+
+EXIT_OFFLINE = 3  # like `systemctl is-active`: daemon not running
+
+SUBCOMMANDS_HELP = """subcommands:
+  exec [opts] -- <cmd>   run a command in an ephemeral bubblewrap capsule (--json for the full result + receipt)
+  serve                  start the REST API + web cockpit on 127.0.0.1:8105
+  status [--json]        live daemon health + telemetry (exit 3 when the daemon is offline)
+  token                  print the per-install exec token (send as X-Capsule-Token)
+  mcp                    run the stdio MCP server (tools: capsule_jail_exec, capsule_jail_status)
+  test                   run the pytest suite
+
+isolation: bubblewrap --ro-bind / /, private tmpfs /home /root /run /tmp, --unshare-all,
+--cap-drop ALL, --die-with-parent; rlimits + cgroup TasksMax scope; secret env stripping;
+SHA-256 receipt per run. Network stays off unless the operator sets CAPSULE_ALLOW_NETWORK=1.
+
+Engineered by Neal Frazier Tech (@1nc0gn30) • NullAI Platform
+☕ https://buy.stripe.com/3cIfZg27PdKo2D64Ocfw40X  ◎ GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK"""
 
 
 def _default_bind_host() -> str:
@@ -50,10 +69,8 @@ C_GRAY = "\033[38;5;244m"
 
 def print_banner() -> None:
     print(f"""{C_GOLD}
-╔══════════════════════════════════════════════════════════════════════════════╗
-║               🛡️ AGENT CAPSULE JAIL — KERNEL ENCLAVE ENGINE 🛡️              ║
-║         1nc0gn30 (@1nc0gn30) • Ephemeral Execution Sandbox          ║
-╚══════════════════════════════════════════════════════════════════════════════╝{C_RESET}""")
+  AGENT CAPSULE JAIL v{__version__} — bubblewrap enclave for agent commands
+  Engineered by Neal Frazier Tech (@1nc0gn30) • NullAI Platform{C_RESET}""")
 
 
 def cmd_exec(args: argparse.Namespace) -> int:
@@ -100,12 +117,17 @@ def cmd_exec(args: argparse.Namespace) -> int:
 
     try:
         res = runner.run(command=command, config=cfg, script=script_content)
+    except CapsuleNetworkDenied as e:
+        print(f"{C_RED}Blocked by capsule policy: {e}{C_RESET}", file=sys.stderr)
+        return 2
     except CapsuleSecurityError as e:
         print(f"{C_RED}Blocked by capsule policy: {e}{C_RESET}", file=sys.stderr)
         return 2
 
     if args.json:
-        print(json.dumps(res.to_dict(), indent=2))
+        out = res.to_dict()
+        out.pop("scratch_dir", None)
+        print(json.dumps(out, indent=2))
         return 0 if res.exit_code == 0 else 1
 
     # Pretty output
@@ -119,9 +141,13 @@ def cmd_exec(args: argparse.Namespace) -> int:
     status_color = C_GREEN if res.status == "success" else C_RED
     print(f"Status:       {status_color}{res.status.upper()}{C_RESET} (Exit Code: {res.exit_code})")
     print(f"Duration:     {res.duration_ms} ms (CPU User: {res.cpu_time_user_s}s, Sys: {res.cpu_time_sys_s}s)")
-    print(f"Peak RSS:     {round(res.max_rss_kb / 1024.0, 2)} MB")
+    print(f"Peak RSS:     {round(res.max_rss_kb / 1024.0, 2)} MB (this run only, os.wait4)")
     print(f"Timed Out:    {res.timed_out}")
     print(f"OOM Killed:   {res.memory_exceeded}")
+    print(f"Sandbox:      {res.sandbox_mode} (process cap: {res.pids_enforcement})")
+    if res.env_denied:
+        print(f"Env denied:   {', '.join(res.env_denied)} (secret-looking names are never passed through)")
+    print(f"Receipt:      sha256:{res.receipt_sha256}")
 
     fs = res.fs_diff or {}
     created = fs.get("created", [])
@@ -158,7 +184,9 @@ def cmd_serve(args: argparse.Namespace) -> int:
     mode = sandbox_mode()
     print(f"  Sandbox:            {mode}" + ("" if mode == "bwrap" else "  (WARNING: commands are NOT isolated)" if mode == "unsandboxed" else "  (exec disabled: install bubblewrap)"))
     load_or_create_token()
-    print(f"  Exec token:         {TOKEN_PATH}  (or run `agent-capsule token`)")
+    print(f"  Process cap:        {pids_enforcement()}")
+    print(f"  Network opt-in:     {'enabled (CAPSULE_ALLOW_NETWORK=1)' if network_opt_in_enabled() else 'disabled'}")
+    print("  Exec token:         run `agent-capsule-jail token`")
     print(f"{C_GRAY}  Flight Recorder:    http://127.0.0.1:8104/api/ingest{C_RESET}")
     print(f"{C_DIM}Press Ctrl+C to terminate server gracefully.{C_RESET}\n")
 
@@ -172,59 +200,58 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
 
 def cmd_status(args: argparse.Namespace) -> int:
-    """Query live server status and display health metrics."""
-    url = f"http://127.0.0.1:{args.port}/api/stats"
-    health_url = f"http://127.0.0.1:{args.port}/api/health"
+    """Query the live daemon. Exit 0 when online, 3 when offline (both modes)."""
+    port = int(getattr(args, "port", 8105) or 8105)
     as_json = bool(getattr(args, "json", False))
-
+    base = f"http://127.0.0.1:{port}"
+    local = {
+        "service": "agent-capsule-jail",
+        "version": __version__,
+        "port": port,
+        "sandbox": sandbox_mode(),
+        "pids_enforcement": pids_enforcement(),
+        "network_opt_in_enabled": network_opt_in_enabled(),
+    }
     try:
-        req = urllib.request.Request(health_url)
-        with urllib.request.urlopen(req, timeout=2.0) as resp:
+        with urllib.request.urlopen(urllib.request.Request(base + "/api/health"), timeout=2.0) as resp:
             health = json.loads(resp.read().decode("utf-8"))
-
-        req_stats = urllib.request.Request(url)
-        with urllib.request.urlopen(req_stats, timeout=2.0) as resp:
+        with urllib.request.urlopen(urllib.request.Request(base + "/api/stats"), timeout=2.0) as resp:
             stats = json.loads(resp.read().decode("utf-8"))
-
-        if as_json:
-            print(json.dumps({
-                "service": "agent-capsule-jail",
-                "version": "2.5.0",
-                "online": True,
-                "port": args.port,
-                "sandbox": sandbox_mode(),
-                "health": health,
-                "stats": stats,
-            }, indent=2))
-            return 0
-
-        print_banner()
-        print(f"{C_GREEN}● ONLINE{C_RESET} — agent-capsule-jail on port {args.port}")
-        print(f"Uptime:             {stats.get('uptime_seconds', 0)}s")
-        print(f"Total Capsules:     {stats.get('total_capsules', 0)}")
-        print(f"Successes:          {C_GREEN}{stats.get('total_successes', 0)}{C_RESET}")
-        print(f"Errors:             {C_RED}{stats.get('total_errors', 0)}{C_RESET}")
-        print(f"Timeouts Enforced:  {C_GOLD}{stats.get('total_timeouts', 0)}{C_RESET}")
-        print(f"Memory Kills:       {C_RED}{stats.get('total_memory_kills', 0)}{C_RESET}")
-        print(f"Cumulative CPU:     {round(stats.get('cumulative_cpu_ms', 0), 2)} ms")
-        print(f"RAM Shielded:       {round(stats.get('cumulative_ram_saved_mb', 0), 2)} MB")
-        print(f"Flight Rec Events:  {stats.get('flight_recorder_events_sent', 0)}")
-        return 0
     except Exception as e:
-        mode = sandbox_mode()
         if as_json:
-            print(json.dumps({
-                "service": "agent-capsule-jail",
-                "version": "2.5.0",
-                "online": False,
-                "port": args.port,
-                "sandbox": mode,
-                "note": str(e),
-            }, indent=2))
-            return 0
+            print(json.dumps({**local, "online": False, "error": f"{type(e).__name__}: {e}",
+                              "hint": "start it with `agent-capsule-jail serve`"}, indent=2))
+            return EXIT_OFFLINE
         print_banner()
-        print(f"{C_GREEN}● LOCAL ENCLAVE READY{C_RESET} — Kernel Sandbox Mode: {C_CYAN}{mode}{C_RESET} (Daemon API note: {e})")
+        print(f"{C_RED}● OFFLINE{C_RESET} — no daemon answering on {base} ({type(e).__name__})")
+        print(f"Local sandbox mode: {C_CYAN}{local['sandbox']}{C_RESET}, process cap: {local['pids_enforcement']}")
+        print(f"{C_DIM}Start it with: agent-capsule-jail serve{C_RESET}")
+        return EXIT_OFFLINE
+
+    if as_json:
+        print(json.dumps({**local, "online": True, "health": health, "stats": stats}, indent=2))
         return 0
+
+    print_banner()
+    print(f"{C_GREEN}● ONLINE{C_RESET} — agent-capsule-jail v{health.get('version', '?')} on {base}")
+    print(f"Sandbox:            {health.get('sandbox')} (process cap: {health.get('pids_enforcement')})")
+    print(f"Network opt-in:     {health.get('network_opt_in_enabled')}")
+    print(f"Uptime:             {stats.get('uptime_seconds', 0)}s")
+    print(f"Total Capsules:     {stats.get('total_capsules', 0)}")
+    print(f"Successes:          {C_GREEN}{stats.get('total_successes', 0)}{C_RESET}")
+    print(f"Errors:             {C_RED}{stats.get('total_errors', 0)}{C_RESET}")
+    print(f"Timeouts Enforced:  {C_GOLD}{stats.get('total_timeouts', 0)}{C_RESET}")
+    print(f"Memory Kills:       {C_RED}{stats.get('total_memory_kills', 0)}{C_RESET}")
+    print(f"Cumulative CPU:     {round(stats.get('cumulative_cpu_ms', 0), 2)} ms (user+sys)")
+    print(f"Peak single-run RSS:{round(stats.get('peak_rss_kb', 0) / 1024.0, 1):>7} MB")
+    print(f"Flight Rec Events:  {stats.get('flight_recorder_events_sent', 0)}")
+    return 0
+
+
+def cmd_mcp(args: argparse.Namespace) -> int:
+    """Run the stdio MCP server."""
+    from .mcp_server import McpServer
+    return McpServer().serve()
 
 
 def cmd_test(args: argparse.Namespace) -> int:
@@ -243,18 +270,20 @@ def cmd_test(args: argparse.Namespace) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        prog="agent-capsule",
-        description="Autonomous ephemeral sandboxed execution engine and kernel enclave for AI agents.",
+        prog="agent-capsule-jail",
+        description="bubblewrap sandbox for AI agent commands: namespace jail, quotas, secret stripping, SHA-256 receipts.",
+        epilog=SUBCOMMANDS_HELP,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("-v", "--version", action="version", version="agent-capsule-jail 2.5.0")
-    parser.add_argument("--status", action="store_true", help="Inspect status of running capsule daemon")
-    parser.add_argument("--json", action="store_true", help="Emit telemetry as JSON")
+    parser.add_argument("-v", "--version", action="version", version=f"agent-capsule-jail v{__version__}")
+    parser.add_argument("--status", action="store_true", help="Live daemon status (same as `status`; exit 3 if offline)")
+    parser.add_argument("--json", action="store_true", help="Live daemon status as JSON (same as `status --json`)")
     parser.add_argument("--port", type=int, default=8105, help="Daemon port (default: 8105)")
     subparsers = parser.add_subparsers(dest="subcommand", help="Available subcommands")
 
     # Command: exec
     p_exec = subparsers.add_parser("exec", help="Execute a command in an isolated ephemeral capsule")
-    p_exec.add_argument("--timeout", type=float, default=30.0, help="CPU timeout in seconds (default: 30.0)")
+    p_exec.add_argument("--timeout", type=float, default=30.0, help="Wall-clock timeout in seconds, 0.5-60 (default: 30.0)")
     p_exec.add_argument("--memory", type=int, default=512, help="Memory ceiling in MB (default: 512)")
     p_exec.add_argument("--max-procs", type=int, default=64, help="Max process quota (default: 64)")
     p_exec.add_argument("--max-fsize", type=int, default=50, help="Max file size write in MB (default: 50)")
@@ -262,7 +291,7 @@ def main() -> None:
     p_exec.add_argument("--script", type=str, help="Path to Python script to execute inside capsule")
     p_exec.add_argument("--commit", action="store_true", help="Commit scratch changes to destination")
     p_exec.add_argument("--dest", type=str, help="Destination directory if committing")
-    p_exec.add_argument("--allow-network", action="store_true", help="Give the capsule network access (off by default)")
+    p_exec.add_argument("--allow-network", action="store_true", help="Request network access (requires operator env CAPSULE_ALLOW_NETWORK=1)")
     p_exec.add_argument("--json", action="store_true", help="Output result as pure JSON")
     p_exec.add_argument("--quiet", "-q", action="store_true", help="Suppress header banner")
     p_exec.add_argument("command", nargs=argparse.REMAINDER, help="Command and arguments to execute")
@@ -277,11 +306,18 @@ def main() -> None:
     p_status.add_argument("--port", type=int, default=8105, help="Daemon port (default: 8105)")
     p_status.add_argument("--json", action="store_true", help="Emit telemetry as JSON")
 
-    # Command: test
-    subparsers.add_parser("test", help="Run automated unit and integration tests")
+    # Command: token / mcp / test
     subparsers.add_parser("token", help="Print the API exec token (for the web cockpit / API clients)")
+    subparsers.add_parser("mcp", help="Run the stdio MCP server (capsule_jail_exec, capsule_jail_status)")
+    subparsers.add_parser("test", help="Run automated unit and integration tests")
 
     args = parser.parse_args()
+    if args.subcommand == "exec":
+        lo, hi = LIMIT_BOUNDS["timeout_sec"]
+        args.timeout = max(lo, min(float(args.timeout), hi))
+        for attr, key in (("memory", "memory_mb"), ("max_procs", "max_procs"), ("max_fsize", "max_file_size_mb")):
+            lo, hi = LIMIT_BOUNDS[key]
+            setattr(args, attr, max(int(lo), min(int(getattr(args, attr)), int(hi))))
 
     if getattr(args, "status", False) or (getattr(args, "json", False) and not args.subcommand):
         sys.exit(cmd_status(args))
@@ -294,9 +330,11 @@ def main() -> None:
         sys.exit(cmd_status(args))
     elif args.subcommand == "test":
         sys.exit(cmd_test(args))
+    elif args.subcommand == "mcp":
+        sys.exit(cmd_mcp(args))
     elif args.subcommand == "token":
         print(load_or_create_token())
-        print(f"(stored in {TOKEN_PATH}; send it as the X-Capsule-Token header)", file=sys.stderr)
+        print("(owner-only 0600 token file; send it as the X-Capsule-Token header)", file=sys.stderr)
         sys.exit(0)
     else:
         print_banner()

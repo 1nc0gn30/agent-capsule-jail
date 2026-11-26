@@ -1,6 +1,6 @@
 """Telemetry, Metrics Aggregation & Flight Recorder Forwarder.
 
-Engineered by 1nc0gn30 (@1nc0gn30) • NullAI Platform.
+Engineered by Neal Frazier Tech (@1nc0gn30) • NullAI Platform.
 100% Python Standard Library — Zero External Dependencies.
 """
 
@@ -31,8 +31,9 @@ class CapsuleStats:
     total_files_created: int = 0
     total_files_modified: int = 0
     total_files_deleted: int = 0
-    cumulative_cpu_ms: float = 0.0
-    cumulative_ram_saved_mb: float = 0.0
+    cumulative_cpu_ms: float = 0.0   # sum of per-run user+sys CPU (os.wait4)
+    cumulative_wall_ms: float = 0.0  # sum of per-run wall-clock durations
+    peak_rss_kb: int = 0             # highest single-run max RSS seen
     uptime_seconds: float = 0.0
     flight_recorder_events_sent: int = 0
 
@@ -55,8 +56,9 @@ class TelemetryRegistry:
         self.start_time = time.time()
         self.stats = CapsuleStats()
 
-    def record_run(self, result: CapsuleResult) -> None:
-        """Record a completed capsule run, update metrics, and dispatch telemetry."""
+    def record_run(self, result: CapsuleResult) -> bool:
+        """Record a completed capsule run and update metrics.
+        Returns True only if the Flight Recorder acknowledged the event with a 2xx."""
         with self.lock:
             self.stats.total_capsules += 1
             if result.status == "success":
@@ -73,22 +75,20 @@ class TelemetryRegistry:
             self.stats.total_files_modified += len(fs.get("modified", []))
             self.stats.total_files_deleted += len(fs.get("deleted", []))
 
-            self.stats.cumulative_cpu_ms += result.duration_ms
-            # Estimate RAM saved as quota ceiling minus actual usage or default 512MB
-            self.stats.cumulative_ram_saved_mb += max(32.0, (result.max_rss_kb / 1024.0) if result.max_rss_kb else 64.0)
+            self.stats.cumulative_cpu_ms += (result.cpu_time_user_s + result.cpu_time_sys_s) * 1000.0
+            self.stats.cumulative_wall_ms += result.duration_ms
+            self.stats.peak_rss_kb = max(self.stats.peak_rss_kb, int(result.max_rss_kb or 0))
 
-            self.history.appendleft(result.to_dict())
+        dispatched = self._forward_flight_recorder(result) if self.flight_recorder_url else False
+        result.flight_recorder_dispatched = dispatched
+        entry = result.to_dict()
+        entry.pop("scratch_dir", None)
+        with self.lock:
+            self.history.appendleft(entry)
+        return dispatched
 
-        # Forward telemetry asynchronously to Flight Recorder if configured
-        if self.flight_recorder_url:
-            threading.Thread(
-                target=self._forward_flight_recorder,
-                args=(result,),
-                daemon=True,
-            ).start()
-
-    def _forward_flight_recorder(self, result: CapsuleResult) -> None:
-        """Non-blocking telemetry dispatch to agent-flight-recorder."""
+    def _forward_flight_recorder(self, result: CapsuleResult) -> bool:
+        """Short, bounded dispatch to agent-flight-recorder (0.5 s timeout). Returns True on 2xx."""
         try:
             fs = result.fs_diff or {}
             payload = {
@@ -108,6 +108,7 @@ class TelemetryRegistry:
                     "files_modified": len(fs.get("modified", [])),
                     "files_deleted": len(fs.get("deleted", [])),
                     "max_rss_kb": result.max_rss_kb,
+                    "receipt_sha256": result.receipt_sha256,
                 },
             }
             data = json.dumps(payload).encode("utf-8")
@@ -117,13 +118,15 @@ class TelemetryRegistry:
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
-            with urllib.request.urlopen(req, timeout=1.0) as resp:
+            with urllib.request.urlopen(req, timeout=0.5) as resp:
                 if 200 <= resp.status < 300:
                     with self.lock:
                         self.stats.flight_recorder_events_sent += 1
+                    return True
         except Exception:
-            # Flight recorder may be offline or starting up; degrade gracefully
-            pass
+            # Flight recorder offline: report honestly as not dispatched.
+            return False
+        return False
 
     def get_stats(self) -> Dict[str, Any]:
         """Return snapshot of aggregated system metrics."""
@@ -137,4 +140,4 @@ class TelemetryRegistry:
     def get_recent_capsules(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Return list of recent capsule runs."""
         with self.lock:
-            return list(self.history)[:limit]
+            return list(self.history)[:max(0, int(limit))]

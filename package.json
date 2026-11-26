@@ -1,13 +1,13 @@
 {
   "name": "agent-capsule-jail",
-  "version": "2.5.0",
-  "description": "Ephemeral bubblewrap/rlimit sandbox, resource quota enforcer, and secret-stripping execution enclave for AI agents.",
+  "version": "2.6.0",
+  "description": "Ephemeral bubblewrap namespace sandbox, cgroup/rlimit quota enforcer, secret-stripping runner, and SHA-256 forensic receipt enclave for AI agents.",
   "scripts": {
     "start": "python3 server.py --port 8105",
     "serve": "python3 server.py --port 8105",
-    "serve:public": "python3 -m http.server 8105 --directory public",
+    "mcp": "PYTHONPATH=src python3 -m agent_capsule_jail.cli mcp",
     "test": "PYTHONPATH=src python3 -m pytest -q tests"
   },
-  "author": "1nc0gn30 (@1nc0gn30) • NullAI",
+  "author": "Neal Frazier Tech (@1nc0gn30) • NullAI Platform",
   "license": "MIT"
 }

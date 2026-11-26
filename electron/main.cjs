@@ -4,10 +4,11 @@ const fs = require('fs');
 const http = require('http');
 const { spawn } = require('child_process');
 
-// Linux & VM GPU Safeguards
-app.commandLine.appendSwitch('no-sandbox');
+// Linux & VM Display Safeguards (sandbox enabled by default; opt-out only via ELECTRON_NO_SANDBOX=1)
+if (process.env.ELECTRON_NO_SANDBOX === '1') {
+  app.commandLine.appendSwitch('no-sandbox');
+}
 app.commandLine.appendSwitch('disable-dev-shm-usage');
-app.commandLine.appendSwitch('disable-gpu-sandbox');
 app.commandLine.appendSwitch('enable-features', 'UseOzonePlatform');
 app.commandLine.appendSwitch('ozone-platform', 'x11');
 
@@ -111,9 +112,10 @@ function createWindow() {
           title: document.title || '',
           textLen: (document.body && document.body.innerText ? document.body.innerText.trim().length : 0),
           htmlLen: (document.documentElement ? document.documentElement.innerHTML.length : 0),
+          hasRunButton: Boolean(document.getElementById('btnRun')),
           buttons: document.querySelectorAll('button, a, input, select, canvas').length
         })`);
-        const ok = metrics.htmlLen > 100;
+        const ok = metrics.htmlLen > 500 && metrics.textLen > 100 && metrics.hasRunButton && consoleErrors.length === 0;
         console.log(JSON.stringify({
           tool: TOOL_ID,
           name: TOOL_NAME,

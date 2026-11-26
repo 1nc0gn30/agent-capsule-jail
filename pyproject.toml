@@ -4,18 +4,20 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-capsule-jail"
-version = "0.1.0"
-description = "Autonomous zero-dependency ephemeral sandboxed execution engine and kernel enclave for AI agents"
+version = "2.6.0"
+description = "Zero-dependency bubblewrap sandbox for AI agent commands: namespace jail, rlimit/cgroup quotas, secret env stripping, SHA-256 receipts, stdio MCP server"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "1nc0gn30 • NullAI", email = "1nc0gn30@users.noreply.github.com"}
+    {name = "Neal Frazier Tech (@1nc0gn30)", email = "1nc0gn30@users.noreply.github.com"}
 ]
 dependencies = []
 
 [project.scripts]
 agent-capsule = "agent_capsule_jail.cli:main"
+agent-capsule-jail = "agent_capsule_jail.cli:main"
+agent-capsule-jail-mcp = "agent_capsule_jail.mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
